@@ -4,1358 +4,924 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Treino PPL — Hipertrofia Máxima</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-/* ═══════════════════════════════════════════
-   TOKENS
-═══════════════════════════════════════════ */
 :root {
-  --accent:  #e8ff47;
-  --push:    #ff6b35;
-  --pull:    #47b4ff;
-  --legs:    #b47fff;
-  --danger:  #ff4d6d;
-  --success: #4dffb4;
-  --radius:  6px;
-  --trans:   0.22s ease;
+  --accent:#e8ff47; --push:#ff6b35; --pull:#47b4ff; --legs:#b47fff;
+  --danger:#ff4d6d; --success:#4dffb4; --r:6px; --t:.2s ease;
 }
-
 [data-theme="dark"] {
-  --bg:       #0a0a0b;
-  --surface:  #111114;
-  --surface2: #18181d;
-  --border:   #252530;
-  --text:     #f0f0f5;
-  --text2:    #a0a0b8;
-  --muted:    #5a5a72;
-  --input-bg: #1c1c22;
-  --chart-grid: rgba(255,255,255,0.05);
+  --bg:#0a0a0b; --surf:#111114; --surf2:#18181d; --bord:#252530;
+  --txt:#f0f0f5; --txt2:#a0a0b8; --muted:#5a5a72; --inp:#1c1c22;
 }
-
 [data-theme="light"] {
-  --bg:       #f4f4f0;
-  --surface:  #ffffff;
-  --surface2: #eeeee8;
-  --border:   #d8d8d0;
-  --text:     #18181d;
-  --text2:    #555565;
-  --muted:    #909099;
-  --input-bg: #f8f8f4;
-  --chart-grid: rgba(0,0,0,0.06);
+  --bg:#f2f2ee; --surf:#ffffff; --surf2:#eaeae4; --bord:#d4d4cc;
+  --txt:#18181d; --txt2:#55555f; --muted:#909099; --inp:#f8f8f4;
 }
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.6;transition:background var(--t),color var(--t)}
 
-/* ═══════════════════════════════════════════
-   RESET & BASE
-═══════════════════════════════════════════ */
-*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+/* ── TOPBAR ── */
+.topbar{position:sticky;top:0;z-index:200;background:var(--bg);border-bottom:1px solid var(--bord);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;backdrop-filter:blur(12px)}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px}
+.logo span{color:var(--accent)}
+.topbar-r{display:flex;align-items:center;gap:10px}
+.theme-lbl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase}
+.tog{width:44px;height:24px;background:var(--surf2);border:1px solid var(--bord);border-radius:12px;cursor:pointer;position:relative;transition:background var(--t);flex-shrink:0}
+.tog::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:var(--accent);top:3px;left:3px;transition:transform .25s cubic-bezier(.4,0,.2,1)}
+[data-theme="light"] .tog::after{transform:translateX(20px)}
 
-html { scroll-behavior: smooth; }
+/* ── NAV ── */
+.nav{background:var(--surf);border-bottom:1px solid var(--bord);display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.nav::-webkit-scrollbar{display:none}
+.nb{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:13px 18px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;white-space:nowrap;transition:color var(--t),border-color var(--t)}
+.nb:hover{color:var(--txt2)}
+.nb.active{color:var(--accent);border-bottom-color:var(--accent)}
+.nb.tp{color:var(--push)}.nb.tp.active{border-bottom-color:var(--push);color:var(--push)}
+.nb.tl{color:var(--pull)}.nb.tl.active{border-bottom-color:var(--pull);color:var(--pull)}
+.nb.tg{color:var(--legs)}.nb.tg.active{border-bottom-color:var(--legs);color:var(--legs)}
+.nb.ts{color:var(--success)}.nb.ts.active{border-bottom-color:var(--success);color:var(--success)}
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
-  min-height: 100vh;
-  transition: background var(--trans), color var(--trans);
-}
+/* ── LAYOUT ── */
+.wrap{max-width:880px;margin:0 auto;padding:0 20px}
+.sec{display:none;padding:28px 0 80px}.sec.on{display:block}
 
-/* ═══════════════════════════════════════════
-   TOPBAR
-═══════════════════════════════════════════ */
-.topbar {
-  position: sticky; top: 0; z-index: 200;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 20px;
-  height: 52px;
-  backdrop-filter: blur(12px);
-}
+/* ── HERO ── */
+.hero{background:var(--surf);border-bottom:1px solid var(--bord);padding:28px 24px 22px;display:none}
+.hero.on{display:block}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,8vw,80px);line-height:.9;letter-spacing:2px}
+.hero h1 span{color:var(--accent)}
+.hero p{font-size:13px;color:var(--txt2);margin-top:10px;max-width:500px}
+.htags{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.ht{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 10px;border-radius:2px;border:1px solid}
+.hy{border-color:var(--accent);color:var(--accent)}
+.ho{border-color:var(--push);color:var(--push)}
+.hb{border-color:var(--pull);color:var(--pull)}
+.hg{border-color:var(--bord);color:var(--muted)}
 
-.topbar-logo {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 22px;
-  letter-spacing: 3px;
-  color: var(--text);
-}
-.topbar-logo span { color: var(--accent); }
+/* ── WEEK GRID ── */
+.wgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:28px}
+@media(max-width:560px){.wgrid{grid-template-columns:repeat(4,1fr)}}
+.dp{border-radius:var(--r);padding:12px 6px;text-align:center;background:var(--surf);border:1px solid var(--bord);position:relative;overflow:hidden}
+.dp::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px}
+.dp.pu::before{background:var(--push)}.dp.pl::before{background:var(--pull)}.dp.lg::before{background:var(--legs)}
+.dp .dn{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px}
+.dp .dt{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:1px}
+.dp.pu .dt{color:var(--push)}.dp.pl .dt{color:var(--pull)}.dp.lg .dt{color:var(--legs)}.dp.rs .dt{color:var(--muted);font-size:13px}
 
-.topbar-right { display: flex; align-items: center; gap: 10px; }
+/* ── SH ── */
+.sh{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+.sh h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,5vw,44px);letter-spacing:2px;line-height:1}
+.badge{display:inline-block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 9px;border-radius:2px;border:1px solid}
+.bp{border-color:rgba(255,107,53,.35);color:var(--push);background:rgba(255,107,53,.08)}
+.bl{border-color:rgba(71,180,255,.35);color:var(--pull);background:rgba(71,180,255,.08)}
+.bg{border-color:rgba(180,127,255,.35);color:var(--legs);background:rgba(180,127,255,.08)}
+.ba{border-color:rgba(232,255,71,.35);color:var(--accent);background:rgba(232,255,71,.08)}
+.bs{border-color:rgba(77,255,180,.35);color:var(--success);background:rgba(77,255,180,.08)}
+.bm{border-color:var(--bord);color:var(--muted)}
+.sdesc{color:var(--txt2);font-size:13px;margin-bottom:22px;line-height:1.7}
 
-/* Theme toggle */
-.theme-toggle {
-  width: 44px; height: 24px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  cursor: pointer;
-  position: relative;
-  transition: background var(--trans);
-  flex-shrink: 0;
-}
-.theme-toggle::after {
-  content: '';
-  position: absolute;
-  width: 16px; height: 16px;
-  border-radius: 50%;
-  background: var(--accent);
-  top: 3px; left: 3px;
-  transition: transform 0.25s cubic-bezier(.4,0,.2,1);
-}
-[data-theme="light"] .theme-toggle::after { transform: translateX(20px); }
+/* ── ALERT ── */
+.alert{display:flex;gap:12px;padding:11px 15px;background:rgba(255,200,50,.07);border:1px solid rgba(255,200,50,.22);border-radius:var(--r);margin-bottom:20px;font-size:12.5px;line-height:1.6;color:#ffcb35}
 
-.theme-label {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: var(--muted);
-  text-transform: uppercase;
-}
+/* ── BLOCK LABEL ── */
+.blk{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin:26px 0 10px;display:flex;align-items:center;gap:10px}
+.blk::after{content:'';flex:1;height:1px;background:var(--bord)}
 
-/* ═══════════════════════════════════════════
-   NAV TABS
-═══════════════════════════════════════════ */
-.nav-tabs {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-.nav-tabs::-webkit-scrollbar { display: none; }
+/* ── EXERCISE TABLE ── */
+.etable{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:4px}
+.etable thead th{font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--bord)}
+.etable tbody tr{border-bottom:1px solid rgba(80,80,100,.15);transition:background var(--t)}
+.etable tbody tr:hover{background:var(--surf2)}
+.etable tbody td{padding:0;vertical-align:top}
 
-.tab-btn {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 13px 18px;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--muted);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color var(--trans), border-color var(--trans);
-}
-.tab-btn:hover { color: var(--text2); }
-.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-.tab-btn.t-push { color: var(--push); }
-.tab-btn.t-pull { color: var(--pull); }
-.tab-btn.t-legs { color: var(--legs); }
-.tab-btn.t-push.active { border-bottom-color: var(--push); }
-.tab-btn.t-pull.active { border-bottom-color: var(--pull); }
-.tab-btn.t-legs.active { border-bottom-color: var(--legs); }
-.tab-btn.t-prog.active { border-bottom-color: var(--accent); }
-.tab-btn.t-log { color: var(--success); }
-.tab-btn.t-log.active { border-bottom-color: var(--success); color: var(--success); }
+/* cell padding wrapper */
+.etable tbody td > .cell{padding:11px 10px}
 
-/* ═══════════════════════════════════════════
-   LAYOUT
-═══════════════════════════════════════════ */
-.container { max-width: 960px; margin: 0 auto; padding: 0 16px; }
-.section { display: none; padding: 28px 0 80px; }
-.section.active { display: block; }
+/* ── EXERCISE ROW EXPANDABLE ── */
+.ex-row{cursor:pointer}
+.ex-row td>.cell{display:flex;align-items:flex-start;gap:0}
+.td-num{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);width:28px;flex-shrink:0;padding-top:2px}
+.td-name-wrap{flex:1}
+.td-name{font-weight:500;color:var(--txt)}
+.td-name small{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+.td-ser{font-family:'DM Mono',monospace;font-size:11.5px;white-space:nowrap}
+.td-rest{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap}
+.td-tech{font-size:11px}
 
-/* ═══════════════════════════════════════════
-   HERO STRIP
-═══════════════════════════════════════════ */
-.hero-strip {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 28px 20px 22px;
-  display: none;
-}
-.hero-strip.active { display: block; }
-.hero-strip h1 {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: clamp(38px,7vw,72px);
-  line-height: 0.92;
-  letter-spacing: 2px;
-}
-.hero-strip h1 span { color: var(--accent); }
-.hero-strip p { font-size: 13px; color: var(--text2); margin-top: 10px; max-width: 520px; }
-.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.htag {
-  font-family: 'DM Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 2px;
-  border: 1px solid;
-}
-.ht-y { border-color: var(--accent); color: var(--accent); }
-.ht-o { border-color: var(--push); color: var(--push); }
-.ht-b { border-color: var(--pull); color: var(--pull); }
-.ht-g { border-color: var(--border); color: var(--muted); }
+/* expand icon */
+.ex-chevron{font-size:10px;color:var(--muted);margin-left:6px;transition:transform .2s;flex-shrink:0;margin-top:3px}
+.ex-row.open .ex-chevron{transform:rotate(90deg);color:var(--accent)}
 
-/* ═══════════════════════════════════════════
-   WEEK GRID
-═══════════════════════════════════════════ */
-.week-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-  margin-bottom: 32px;
-}
-@media(max-width:600px){ .week-grid { grid-template-columns: repeat(4,1fr); } }
-.day-pill {
-  border-radius: var(--radius);
-  padding: 12px 6px;
-  text-align: center;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  position: relative; overflow: hidden;
-}
-.day-pill::before {
-  content: '';
-  position: absolute; top: 0; left: 0;
-  width: 100%; height: 3px;
-}
-.dp-push::before { background: var(--push); }
-.dp-pull::before { background: var(--pull); }
-.dp-legs::before { background: var(--legs); }
-.day-pill .dn {
-  font-family: 'DM Mono', monospace;
-  font-size: 8px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); display: block; margin-bottom: 6px;
-}
-.day-pill .dt {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 17px; letter-spacing: 1px;
-}
-.dp-push .dt { color: var(--push); }
-.dp-pull .dt { color: var(--pull); }
-.dp-legs .dt { color: var(--legs); }
-.dp-rest .dt { color: var(--muted); font-size: 13px; }
+/* ── LOG INLINE PANEL ── */
+.log-panel{display:none;background:var(--surf2);border-top:1px solid var(--bord)}
+.log-panel.open{display:table-row}
+.log-panel td{padding:0 !important}
+.log-inner{padding:14px 14px 14px 38px}
 
-/* ═══════════════════════════════════════════
-   SECTION HEADING
-═══════════════════════════════════════════ */
-.sh {
-  display: flex; align-items: baseline; gap: 12px;
-  margin-bottom: 6px;
-}
-.sh h2 {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: clamp(32px,5vw,48px);
-  letter-spacing: 2px; line-height: 1;
-}
-.badge {
-  display: inline-block;
-  font-family: 'DM Mono', monospace;
-  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
-  padding: 3px 9px; border-radius: 2px; border: 1px solid;
-}
-.bd-push { border-color:rgba(255,107,53,.35); color:var(--push); background:rgba(255,107,53,.08); }
-.bd-pull { border-color:rgba(71,180,255,.35); color:var(--pull); background:rgba(71,180,255,.08); }
-.bd-legs { border-color:rgba(180,127,255,.35); color:var(--legs); background:rgba(180,127,255,.08); }
-.bd-acc  { border-color:rgba(232,255,71,.35); color:var(--accent); background:rgba(232,255,71,.08); }
-.bd-suc  { border-color:rgba(77,255,180,.35); color:var(--success); background:rgba(77,255,180,.08); }
-.bd-mut  { border-color:var(--border); color:var(--muted); }
+.log-form-row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:12px}
+.lf-group{display:flex;flex-direction:column;gap:4px}
+.lf-group label{font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.lf-input{background:var(--inp);border:1px solid var(--bord);border-radius:var(--r);color:var(--txt);font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;width:90px;outline:none;transition:border-color var(--t)}
+.lf-input:focus{border-color:var(--accent)}
+.lf-input.wide{width:120px}
+input[type=date].lf-input{width:140px}
 
-.section-desc { color: var(--text2); font-size: 13px; margin-bottom: 24px; line-height: 1.7; }
+.btn-save{font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;padding:8px 16px;border-radius:var(--r);border:none;background:var(--accent);color:#0a0a0b;cursor:pointer;transition:opacity var(--t);white-space:nowrap}
+.btn-save:hover{opacity:.85}
+.btn-ghost{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:5px 10px;border-radius:var(--r);border:1px solid var(--bord);background:transparent;color:var(--muted);cursor:pointer;transition:all var(--t)}
+.btn-ghost:hover{color:var(--txt);border-color:var(--txt2)}
+.btn-del{font-family:'DM Mono',monospace;font-size:8px;padding:3px 7px;border-radius:2px;border:1px solid rgba(255,77,109,.3);background:transparent;color:var(--danger);cursor:pointer;transition:background var(--t)}
+.btn-del:hover{background:rgba(255,77,109,.1)}
 
-/* ═══════════════════════════════════════════
-   ALERT
-═══════════════════════════════════════════ */
-.alert {
-  display: flex; gap: 12px;
-  padding: 12px 16px;
-  background: rgba(255,200,50,.07);
-  border: 1px solid rgba(255,200,50,.22);
-  border-radius: var(--radius);
-  margin-bottom: 22px;
-  font-size: 12.5px; line-height: 1.6; color: #ffcb35;
-}
-.alert-i { flex-shrink: 0; font-size: 16px; }
+/* log history inside panel */
+.log-hist{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.log-hist-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.lentry{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);animation:fi .15s ease}
+@keyframes fi{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+.lentry-main{display:flex;align-items:center;gap:12px;flex:1;flex-wrap:wrap}
+.lentry-load{font-family:'Bebas Neue',sans-serif;font-size:26px;line-height:1;color:var(--accent)}
+.lentry-load span{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.lentry-meta{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.lentry-meta strong{color:var(--txt);font-size:11px}
+.pr-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:2px 6px;border-radius:2px;background:rgba(232,255,71,.15);color:var(--accent);border:1px solid rgba(232,255,71,.3);margin-left:4px}
+.no-entries{font-size:12px;color:var(--muted);font-style:italic;padding:4px 0}
 
-/* ═══════════════════════════════════════════
-   BLOCK LABEL
-═══════════════════════════════════════════ */
-.blk-label {
-  font-family: 'DM Mono', monospace;
-  font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 10px; margin-top: 28px;
-  display: flex; align-items: center; gap: 10px;
-}
-.blk-label::after { content:''; flex:1; height:1px; background:var(--border); }
+/* pr hint */
+.pr-hint{font-size:11.5px;color:var(--accent);margin-top:4px;min-height:16px;font-weight:500}
 
-/* ═══════════════════════════════════════════
-   EXERCISE TABLE
-═══════════════════════════════════════════ */
-.ex-table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom: 8px; }
-.ex-table thead th {
-  font-family: 'DM Mono', monospace;
-  font-size: 8.5px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); text-align: left;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-}
-.ex-table tbody tr {
-  border-bottom: 1px solid rgba(80,80,100,.18);
-  transition: background var(--trans);
-}
-.ex-table tbody tr:hover { background: var(--surface2); }
-.ex-table tbody td { padding: 11px 12px; vertical-align: top; }
-.td-num { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); width:28px; }
-.td-name { font-weight:500; color:var(--text); }
-.td-name small { display:block; font-size:11px; color:var(--muted); font-weight:400; margin-top:2px; }
-.td-ser { font-family:'DM Mono',monospace; font-size:11.5px; white-space:nowrap; }
-.td-rest { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); white-space:nowrap; }
-.td-tech { font-size:11px; }
+/* ── TECH BADGES ── */
+.tb{display:inline-block;padding:2px 7px;border-radius:2px;font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:1.2px;text-transform:uppercase;margin:1px 2px 1px 0;border:1px solid}
+.tf{border-color:rgba(232,255,71,.3);color:var(--accent);background:rgba(232,255,71,.08)}
+.tr{border-color:rgba(255,107,53,.3);color:var(--push);background:rgba(255,107,53,.08)}
+.td2{border-color:rgba(71,180,255,.3);color:var(--pull);background:rgba(71,180,255,.08)}
+.tfa{border-color:rgba(180,127,255,.3);color:var(--legs);background:rgba(180,127,255,.08)}
+.tp2{border-color:var(--bord);color:var(--muted)}
+.tw{border-color:rgba(255,200,50,.3);color:#ffcb35;background:rgba(255,200,50,.07)}
 
-/* técnica badges */
-.tb { display:inline-block; padding:2px 7px; border-radius:2px; font-family:'DM Mono',monospace; font-size:8.5px; letter-spacing:1.2px; text-transform:uppercase; margin:1px 2px 1px 0; border:1px solid; }
-.tb-fst { border-color:rgba(232,255,71,.3); color:var(--accent); background:rgba(232,255,71,.08); }
-.tb-rp  { border-color:rgba(255,107,53,.3); color:var(--push); background:rgba(255,107,53,.08); }
-.tb-drop{ border-color:rgba(71,180,255,.3); color:var(--pull); background:rgba(71,180,255,.08); }
-.tb-fail{ border-color:rgba(180,127,255,.3); color:var(--legs); background:rgba(180,127,255,.08); }
-.tb-prog{ border-color:var(--border); color:var(--muted); }
-.tb-warn{ border-color:rgba(255,200,50,.3); color:#ffcb35; background:rgba(255,200,50,.07); }
+/* ── LEGEND ── */
+.legend{display:flex;flex-wrap:wrap;gap:9px;padding:12px 14px;background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);margin-bottom:24px}
+.li{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--txt2)}
 
-/* ═══════════════════════════════════════════
-   LEGEND
-═══════════════════════════════════════════ */
-.legend {
-  display:flex; flex-wrap:wrap; gap:10px;
-  padding:14px 16px;
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  margin-bottom:28px;
-}
-.leg-item { display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--text2); }
+/* ── RULE CARDS ── */
+.rgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.rc{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:16px}
+.ri{font-size:20px;display:block;margin-bottom:8px}
+.rt{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--accent);margin-bottom:5px}
+.rb{font-size:12.5px;color:var(--txt2);line-height:1.7}
+.rb strong{color:var(--txt)}
 
-/* ═══════════════════════════════════════════
-   RULE CARDS
-═══════════════════════════════════════════ */
-.rules-grid {
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px,1fr));
-  gap:12px;
-}
-.rule-card {
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:18px;
-}
-.rule-icon { font-size:20px; display:block; margin-bottom:8px; }
-.rule-title {
-  font-family:'Bebas Neue',sans-serif;
-  font-size:17px; letter-spacing:1px;
-  color:var(--accent); margin-bottom:6px;
-}
-.rule-body { font-size:12.5px; color:var(--text2); line-height:1.7; }
-.rule-body strong { color:var(--text); }
+/* ── PROG CARDS ── */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-bottom:28px}
+.pc{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:18px;position:relative;overflow:hidden}
+.pc::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%}
+.pc1::before{background:var(--pull)}.pc2::before{background:var(--accent)}
+.pc3::before{background:var(--push)}.pc4::before{background:var(--legs)}.pcd::before{background:var(--muted)}
+.pw{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;line-height:1;margin-bottom:2px}
+.pc1 .pw{color:var(--pull)}.pc2 .pw{color:var(--accent)}.pc3 .pw{color:var(--push)}.pc4 .pw{color:var(--legs)}.pcd .pw{color:var(--muted)}
+.pn{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.pl2{list-style:none;display:flex;flex-direction:column;gap:6px}
+.pl2 li{display:flex;gap:8px;font-size:12px;color:var(--txt2);line-height:1.5}
+.pl2 li::before{content:'→';color:var(--muted);flex-shrink:0;font-family:'DM Mono',monospace;font-size:10px;margin-top:2px}
 
-/* ═══════════════════════════════════════════
-   PROGRESSÃO CARDS
-═══════════════════════════════════════════ */
-.prog-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-  gap:12px; margin-bottom:32px;
-}
-.prog-card {
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:20px; position:relative; overflow:hidden;
-}
-.prog-card::before {
-  content:''; position:absolute; top:0; left:0;
-  width:3px; height:100%;
-}
-.pc-1::before { background:var(--pull); }
-.pc-2::before { background:var(--accent); }
-.pc-3::before { background:var(--push); }
-.pc-4::before { background:var(--legs); }
-.pc-d::before { background:var(--muted); }
-.prog-week {
-  font-family:'Bebas Neue',sans-serif;
-  font-size:26px; letter-spacing:1px; line-height:1; margin-bottom:3px;
-}
-.pc-1 .prog-week { color:var(--pull); }
-.pc-2 .prog-week { color:var(--accent); }
-.pc-3 .prog-week { color:var(--push); }
-.pc-4 .prog-week { color:var(--legs); }
-.pc-d .prog-week { color:var(--muted); }
-.prog-name {
-  font-family:'DM Mono',monospace;
-  font-size:9.5px; letter-spacing:1px; text-transform:uppercase;
-  color:var(--muted); margin-bottom:12px;
-}
-.prog-list { list-style:none; display:flex; flex-direction:column; gap:7px; }
-.prog-list li { display:flex; gap:8px; font-size:12.5px; color:var(--text2); line-height:1.5; }
-.prog-list li::before { content:'→'; color:var(--muted); flex-shrink:0; font-family:'DM Mono',monospace; font-size:10px; margin-top:2px; }
+hr.dv{border:none;border-top:1px solid var(--bord);margin:28px 0}
 
-/* ═══════════════════════════════════════════
-   DIVIDER
-═══════════════════════════════════════════ */
-hr.div { border:none; border-top:1px solid var(--border); margin:32px 0; }
+/* ── EVOLUÇÃO TAB ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:20px}
+.sc{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:12px 14px;text-align:center}
+.sv{font-family:'Bebas Neue',sans-serif;font-size:28px;line-height:1;color:var(--accent)}
+.sl{font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-top:3px}
 
-/* ═══════════════════════════════════════════
-   LOG — REGISTRO DE CARGAS
-═══════════════════════════════════════════ */
-.log-controls {
-  display:flex; flex-wrap:wrap; gap:10px;
-  margin-bottom:24px;
-}
-.log-select, .log-input {
-  background:var(--input-bg);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  color:var(--text);
-  font-family:'DM Sans',sans-serif;
-  font-size:13px;
-  padding:9px 12px;
-  transition:border-color var(--trans);
-  outline:none;
-  -webkit-appearance:none;
-}
-.log-select:focus, .log-input:focus { border-color:var(--accent); }
-.log-select { min-width:180px; cursor:pointer; }
-.log-input { width:100px; }
-.log-input::placeholder { color:var(--muted); }
+.chart-wrap{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:18px;margin-bottom:24px}
+.ch-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.ch-head h3{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--txt)}
+.lsel{background:var(--inp);border:1px solid var(--bord);border-radius:var(--r);color:var(--txt);font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;outline:none;min-width:200px;cursor:pointer;transition:border-color var(--t)}
+.lsel:focus{border-color:var(--accent)}
+canvas{max-height:240px}
 
-.btn {
-  font-family:'DM Mono',monospace;
-  font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
-  padding:9px 18px;
-  border-radius:var(--radius);
-  border:1px solid;
-  cursor:pointer;
-  transition:all var(--trans);
-  white-space:nowrap;
-}
-.btn-acc {
-  background:var(--accent); color:#0a0a0b;
-  border-color:var(--accent);
-}
-.btn-acc:hover { opacity:.85; }
-.btn-ghost {
-  background:transparent; color:var(--muted);
-  border-color:var(--border);
-}
-.btn-ghost:hover { color:var(--text); border-color:var(--text2); }
-.btn-danger {
-  background:transparent; color:var(--danger);
-  border-color:rgba(255,77,109,.3);
-  font-size:9px; padding:5px 10px;
-}
-.btn-danger:hover { background:rgba(255,77,109,.1); }
+.empty{text-align:center;padding:36px 16px;color:var(--muted)}
+.empty .ei{font-size:36px;display:block;margin-bottom:10px}
+.empty p{font-size:13px;line-height:1.7}
 
-/* Form row */
-.log-form {
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:20px;
-  margin-bottom:28px;
-}
-.log-form h3 {
-  font-family:'Bebas Neue',sans-serif;
-  font-size:20px; letter-spacing:1px;
-  color:var(--accent); margin-bottom:14px;
-}
-.form-row {
-  display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;
-}
-.form-group { display:flex; flex-direction:column; gap:5px; }
-.form-group label {
-  font-family:'DM Mono',monospace;
-  font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
-  color:var(--muted);
-}
-.form-hint { font-size:11px; color:var(--muted); margin-top:4px; font-style:italic; }
+/* ── EXPORT ROW ── */
+.export-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.btn-exp{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;padding:8px 14px;border-radius:var(--r);border:1px solid var(--bord);background:transparent;color:var(--muted);cursor:pointer;transition:all var(--t)}
+.btn-exp:hover{color:var(--txt);border-color:var(--txt2)}
 
-/* Log entries */
-.log-entries {
-  display:flex; flex-direction:column; gap:10px;
-  margin-top:20px;
-}
-.entry-card {
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:14px 16px;
-  display:flex; justify-content:space-between; align-items:center;
-  gap:12px;
-  animation: fadeIn .2s ease;
-}
-@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
-.entry-left { flex:1; }
-.entry-ex {
-  font-weight:600; font-size:13.5px; color:var(--text);
-  margin-bottom:3px;
-}
-.entry-meta {
-  font-family:'DM Mono',monospace;
-  font-size:10.5px; color:var(--muted);
-  display:flex; flex-wrap:wrap; gap:10px;
-}
-.entry-load {
-  font-family:'Bebas Neue',monospace;
-  font-size:28px; color:var(--accent); line-height:1;
-}
-.entry-load span { font-size:12px; color:var(--muted); font-family:'DM Mono',monospace; }
+/* ── HISTORY LIST ── */
+.hist-filter{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.hist-list{display:flex;flex-direction:column;gap:8px}
+.hcard{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;animation:fi .2s ease}
+.hc-left{flex:1}
+.hc-ex{font-weight:600;font-size:13px;color:var(--txt);margin-bottom:2px}
+.hc-meta{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px}
+.hc-load{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent);line-height:1}
+.hc-load span{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)}
 
-/* Chart */
-.chart-wrap {
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:20px;
-  margin-top:24px;
-}
-.chart-header {
-  display:flex; justify-content:space-between; align-items:center;
-  margin-bottom:16px; flex-wrap:wrap; gap:10px;
-}
-.chart-header h3 {
-  font-family:'Bebas Neue',sans-serif;
-  font-size:20px; letter-spacing:1px; color:var(--text);
-}
-.chart-select { max-width:200px; }
-canvas { max-height:260px; }
-
-/* Empty state */
-.empty-state {
-  text-align:center; padding:48px 20px;
-  color:var(--muted);
-}
-.empty-state .ei { font-size:40px; display:block; margin-bottom:12px; }
-.empty-state p { font-size:13px; line-height:1.7; }
-
-/* Stats strip */
-.stats-strip {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
-  gap:10px; margin-bottom:20px;
-}
-.stat-card {
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:14px 16px; text-align:center;
-}
-.stat-val {
-  font-family:'Bebas Neue',sans-serif;
-  font-size:30px; line-height:1; color:var(--accent);
-}
-.stat-label {
-  font-family:'DM Mono',monospace;
-  font-size:8.5px; letter-spacing:1.5px; text-transform:uppercase;
-  color:var(--muted); margin-top:4px;
-}
-
-/* PR badge */
-.pr-badge {
-  display:inline-block;
-  font-family:'DM Mono',monospace;
-  font-size:8px; letter-spacing:1px; text-transform:uppercase;
-  padding:2px 6px; border-radius:2px;
-  background:rgba(232,255,71,.15);
-  color:var(--accent); border:1px solid rgba(232,255,71,.3);
-  margin-left:6px;
-}
-
-/* ═══════════════════════════════════════════
-   FOOTER
-═══════════════════════════════════════════ */
-footer {
-  border-top:1px solid var(--border);
-  padding:20px;
-  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
-}
-footer p {
-  font-family:'DM Mono',monospace;
-  font-size:9.5px; letter-spacing:1.2px; text-transform:uppercase;
-  color:var(--muted);
-}
-
-/* ═══════════════════════════════════════════
-   MOBILE TWEAKS
-═══════════════════════════════════════════ */
+/* ── MOBILE ── */
 @media(max-width:600px){
-  .ex-table thead th:nth-child(3),
-  .ex-table thead th:nth-child(4),
-  .ex-table tbody td:nth-child(3),
-  .ex-table tbody td:nth-child(4) { display:none; }
-  .form-row { flex-direction:column; }
-  .log-input { width:100%; }
-  .entry-load { font-size:22px; }
+  .etable thead th:nth-child(3),
+  .etable thead th:nth-child(4),
+  .etable tbody td:nth-child(3),
+  .etable tbody td:nth-child(4){display:none}
+  .log-form-row{flex-direction:column}
+  .lf-input,.lf-input.wide{width:100%}
+  input[type=date].lf-input{width:100%}
 }
 </style>
 </head>
 <body>
 
-<!-- ══════════ TOPBAR ══════════ -->
+<!-- TOPBAR -->
 <div class="topbar">
-  <div class="topbar-logo">TREINO<span>MAX</span></div>
-  <div class="topbar-right">
-    <span class="theme-label" id="theme-lbl">Dark</span>
-    <button class="theme-toggle" id="theme-toggle" aria-label="Alternar tema" onclick="toggleTheme()"></button>
+  <div class="logo">TREINO<span>MAX</span></div>
+  <div class="topbar-r">
+    <span class="theme-lbl" id="tlbl">Dark</span>
+    <button class="tog" id="tog" onclick="toggleTheme()" aria-label="Tema"></button>
   </div>
 </div>
 
-<!-- ══════════ HERO (só na aba visão geral) ══════════ -->
-<div class="hero-strip active" id="hero-strip">
-  <div class="container">
+<!-- HERO -->
+<div class="hero on" id="hero">
+  <div class="wrap">
     <h1>PPL<br><span>HIPERTROFIA</span></h1>
-    <p>Metodologia híbrida: FST-7 (Rambod) · Falha Total (Schatz) · Progressão de Carga (Pacholok). 6 dias/semana · Ombro adaptado pós-cirurgia.</p>
-    <div class="hero-tags">
-      <span class="htag ht-y">FST-7</span>
-      <span class="htag ht-o">Mais Cinco</span>
-      <span class="htag ht-b">Prog. Carga</span>
-      <span class="htag ht-g">Intermediário</span>
-      <span class="htag ht-g">⚠ Ombro OK</span>
+    <p>FST-7 (Rambod) · Falha Total (Schatz) · Progressão de Carga (Pacholok). 6 dias/semana · Ombro adaptado.</p>
+    <div class="htags">
+      <span class="ht hy">FST-7</span><span class="ht ho">Mais Cinco</span>
+      <span class="ht hb">Prog. Carga</span><span class="ht hg">Intermediário</span>
+      <span class="ht hg">⚠ Ombro OK</span>
     </div>
   </div>
 </div>
 
-<!-- ══════════ TABS ══════════ -->
-<nav class="nav-tabs">
-  <button class="tab-btn active"   onclick="show('visao','this')">Geral</button>
-  <button class="tab-btn t-push"   onclick="show('push1','this')">Push A</button>
-  <button class="tab-btn t-pull"   onclick="show('pull1','this')">Pull A</button>
-  <button class="tab-btn t-legs"   onclick="show('legs1','this')">Legs A</button>
-  <button class="tab-btn t-push"   onclick="show('push2','this')">Push B</button>
-  <button class="tab-btn t-pull"   onclick="show('pull2','this')">Pull B</button>
-  <button class="tab-btn t-legs"   onclick="show('legs2','this')">Legs B</button>
-  <button class="tab-btn t-prog"   onclick="show('prog','this')">Progressão</button>
-  <button class="tab-btn t-log"    onclick="show('log','this')">📈 Cargas</button>
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <button class="nb active" data-tab="visao">Geral</button>
+  <button class="nb tp" data-tab="push1">Push A</button>
+  <button class="nb tl" data-tab="pull1">Pull A</button>
+  <button class="nb tg" data-tab="legs1">Legs A</button>
+  <button class="nb tp" data-tab="push2">Push B</button>
+  <button class="nb tl" data-tab="pull2">Pull B</button>
+  <button class="nb tg" data-tab="legs2">Legs B</button>
+  <button class="nb" data-tab="prog">Progressão</button>
+  <button class="nb ts" data-tab="evolucao">📈 Evolução</button>
 </nav>
 
-<!-- ══════════════════════════════════════
-     VISÃO GERAL
-══════════════════════════════════════════ -->
-<section id="visao" class="section active">
-<div class="container">
-  <div class="sh"><h2>VISÃO GERAL</h2><span class="badge bd-acc">Semana Tipo</span></div>
-  <p class="section-desc">PPL duplo — cada grupo muscular 2× por semana com estímulos A e B diferentes. Frequência ideal para hipertrofia máxima em intermediários com 6 dias disponíveis.</p>
-
-  <div class="week-grid">
-    <div class="day-pill dp-push"><span class="dn">Seg</span><span class="dt">Push A</span></div>
-    <div class="day-pill dp-pull"><span class="dn">Ter</span><span class="dt">Pull A</span></div>
-    <div class="day-pill dp-legs"><span class="dn">Qua</span><span class="dt">Legs A</span></div>
-    <div class="day-pill dp-push"><span class="dn">Qui</span><span class="dt">Push B</span></div>
-    <div class="day-pill dp-pull"><span class="dn">Sex</span><span class="dt">Pull B</span></div>
-    <div class="day-pill dp-legs"><span class="dn">Sáb</span><span class="dt">Legs B</span></div>
-    <div class="day-pill dp-rest"><span class="dn">Dom</span><span class="dt">Rest</span></div>
+<!-- ══════════ VISÃO GERAL ══════════ -->
+<section id="visao" class="sec on">
+<div class="wrap">
+  <div class="sh"><h2>VISÃO GERAL</h2><span class="badge ba">Semana Tipo</span></div>
+  <p class="sdesc">PPL duplo — cada grupo 2× por semana com estímulos A e B. Clique em qualquer exercício para registrar sua carga direto na linha.</p>
+  <div class="wgrid">
+    <div class="dp pu"><span class="dn">Seg</span><span class="dt">Push A</span></div>
+    <div class="dp pl"><span class="dn">Ter</span><span class="dt">Pull A</span></div>
+    <div class="dp lg"><span class="dn">Qua</span><span class="dt">Legs A</span></div>
+    <div class="dp pu"><span class="dn">Qui</span><span class="dt">Push B</span></div>
+    <div class="dp pl"><span class="dn">Sex</span><span class="dt">Pull B</span></div>
+    <div class="dp lg"><span class="dn">Sáb</span><span class="dt">Legs B</span></div>
+    <div class="dp rs"><span class="dn">Dom</span><span class="dt">Rest</span></div>
   </div>
-
   <div class="legend">
-    <div class="leg-item"><span class="tb tb-prog">Prog</span>Progressão série a série (Pacholok)</div>
-    <div class="leg-item"><span class="tb tb-fst">FST-7</span>7 séries finais pump (Rambod)</div>
-    <div class="leg-item"><span class="tb tb-rp">Rest Pause</span>Falha + 3 resp. + falha (Schatz)</div>
-    <div class="leg-item"><span class="tb tb-drop">Drop Set</span>−30% na falha, continua</div>
-    <div class="leg-item"><span class="tb tb-fail">Falha</span>Série até falha concêntrica</div>
-    <div class="leg-item"><span class="tb tb-warn">⚠ Ombro</span>Exercício adaptado</div>
+    <div class="li"><span class="tb tp2">Prog</span>Progressão série a série</div>
+    <div class="li"><span class="tb tf">FST-7</span>7 séries pump final</div>
+    <div class="li"><span class="tb tr">Rest Pause</span>Falha + 3 resp + falha</div>
+    <div class="li"><span class="tb td2">Drop Set</span>−30% na falha</div>
+    <div class="li"><span class="tb tfa">Falha</span>Até a falha concêntrica</div>
+    <div class="li"><span class="tb tw">⚠</span>Exercício adaptado (ombro)</div>
+    <div class="li"><span style="font-size:16px">▶</span>Clique no exercício para registrar carga</div>
   </div>
-
-  <div class="rules-grid">
-    <div class="rule-card">
-      <span class="rule-icon">🔺</span>
-      <div class="rule-title">Progressão de Carga</div>
-      <div class="rule-body">Comece leve e <strong>aumente o peso a cada série</strong>. Se completar todas as reps, sobe 2,5–5kg na próxima semana. Método Pacholok.</div>
-    </div>
-    <div class="rule-card">
-      <span class="rule-icon">💀</span>
-      <div class="rule-title">Falha Muscular</div>
-      <div class="rule-body"><strong>Nenhuma repetição reservada</strong> nos exercícios marcados. Johann Schatz: "Mais cinco, até o limite todo dia!"</div>
-    </div>
-    <div class="rule-card">
-      <span class="rule-icon">🩸</span>
-      <div class="rule-title">FST-7</div>
-      <div class="rule-body">Último exercício de cada grupo: <strong>7 séries, 30–45 seg descanso</strong>. Máximo pump, expansão fascial. Hany Rambod.</div>
-    </div>
-    <div class="rule-card">
-      <span class="rule-icon">⏱</span>
-      <div class="rule-title">Intervalos</div>
-      <div class="rule-body"><strong>Compostos:</strong> 2–3 min. <strong>Isolamentos:</strong> 60–90 seg. <strong>FST-7:</strong> 30–45 seg — inegociável.</div>
-    </div>
-    <div class="rule-card">
-      <span class="rule-icon">📓</span>
-      <div class="rule-title">Registro de Cargas</div>
-      <div class="rule-body">Use a aba <strong>📈 Cargas</strong> para anotar seus pesos a cada sessão e ver o gráfico de evolução. Dados salvos no dispositivo.</div>
-    </div>
-    <div class="rule-card">
-      <span class="rule-icon">⚠️</span>
-      <div class="rule-title">Ombro Adaptado</div>
-      <div class="rule-body"><strong>Sem desenvolvimento aberto</strong>, <strong>sem paralelas</strong>. Substituídos por Hammer Press neutro, Smith neutro e máquinas convergentes.</div>
-    </div>
+  <div class="rgrid">
+    <div class="rc"><span class="ri">🔺</span><div class="rt">Progressão de Carga</div><div class="rb">Comece leve e <strong>aumente o peso a cada série</strong>. Se completar todas as reps, sobe 2,5–5kg na próxima semana.</div></div>
+    <div class="rc"><span class="ri">💀</span><div class="rt">Falha Muscular</div><div class="rb"><strong>Nenhuma rep reservada</strong> nos exercícios marcados. "Mais cinco, até o limite todo dia!" — Johann Schatz.</div></div>
+    <div class="rc"><span class="ri">🩸</span><div class="rt">FST-7</div><div class="rb">Último exercício de cada grupo: <strong>7 séries, 30–45 seg descanso</strong>. Máximo pump e resposta hormonal.</div></div>
+    <div class="rc"><span class="ri">📲</span><div class="rt">Registro Inline</div><div class="rb"><strong>Clique em qualquer exercício</strong> para abrir o registro de carga direto na linha. Gráfico de evolução na aba 📈.</div></div>
+    <div class="rc"><span class="ri">⚠️</span><div class="rt">Ombro Adaptado</div><div class="rb"><strong>Sem desenvolvimento aberto</strong>, <strong>sem paralelas</strong>. Substituídos por Hammer Press neutro e Smith convergente.</div></div>
+    <div class="rc"><span class="ri">⏱</span><div class="rt">Intervalos</div><div class="rb"><strong>Compostos:</strong> 2–3 min. <strong>Isolamentos:</strong> 60–90 seg. <strong>FST-7:</strong> 30–45 seg — inegociável.</div></div>
   </div>
 </div>
 </section>
 
-<!-- ══════════════════════════════════════
-     PUSH A
-══════════════════════════════════════════ -->
-<section id="push1" class="section">
-<div class="container">
-  <div class="sh"><h2 style="color:var(--push)">PUSH A</h2><span class="badge bd-push">Peito · Ombro · Tríceps</span></div>
-  <p class="section-desc">Foco em peito (inclinado + reto). Ombro via máquina segura. Finalizador FST-7 em peck deck e corda.</p>
-  <div class="alert"><span class="alert-i">⚠️</span><span>Desenvolvimento neutro (cotovelos à frente). Evite abrir os cotovelos acima dos ombros.</span></div>
+<!-- ══════════ PUSH A ══════════ -->
+<section id="push1" class="sec">
+<div class="wrap">
+  <div class="sh"><h2 style="color:var(--push)">PUSH A</h2><span class="badge bp">Peito · Ombro · Tríceps</span></div>
+  <p class="sdesc">Foco em peito inclinado + reto. Ombro via Hammer Press neutro. FST-7 em peck deck e corda. Clique no exercício para registrar carga.</p>
+  <div class="alert"><span>⚠️</span><span>Desenvolvimento neutro (cotovelos à frente). Não abra os cotovelos acima dos ombros.</span></div>
 
-  <div class="blk-label">Ombro</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">01</td><td class="td-name">Desenvolvimento Máquina Hammer (Neutro)<small>Pegada neutra, cotovelos à frente</small></td><td class="td-ser">2×15 / 1×12 / 1×10 / 1×8</td><td class="td-rest">2–3 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span><span class="tb tb-warn">⚠</span></td></tr>
-    <tr><td class="td-num">02</td><td class="td-name">Elevação Lateral Máquina<small>Pico de contração no topo</small></td><td class="td-ser">4×12–15</td><td class="td-rest">60–90 seg</td><td class="td-tech"><span class="tb tb-fail">Falha</span></td></tr>
-    <tr><td class="td-num">03</td><td class="td-name">Elevação Lateral Unilateral — Cabo baixo<small>Maior tensão no início do movimento</small></td><td class="td-ser">3×15</td><td class="td-rest">45 seg</td><td class="td-tech"><span class="tb tb-fst">FST prep</span></td></tr>
-  </tbody></table>
+  <div class="blk">Ombro</div>
+  <table class="etable">
+    <thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
+    <tbody id="t-push1">
+      <!-- rows injected by JS -->
+    </tbody>
+  </table>
 
-  <div class="blk-label">Peito</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">04</td><td class="td-name">Supino Inclinado com Halteres<small>45°, explosivo na subida</small></td><td class="td-ser">1×12 / 1×10 / 1×8</td><td class="td-rest">2–3 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span><span class="tb tb-fail">Falha</span></td></tr>
-    <tr><td class="td-num">05</td><td class="td-name">Supino Reto com Halteres<small>Amplitude máxima, não trave no topo</small></td><td class="td-ser">1×12 / 1×10 / 1×8</td><td class="td-rest">2–3 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">06</td><td class="td-name">Crucifixo Inclinado no Cabo<small>Cabo alto, arco constante</small></td><td class="td-ser">3×12–15</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-rp">Rest Pause</span></td></tr>
-    <tr><td class="td-num">07</td><td class="td-name">Peck Deck — FST-7<small>7 séries, 30–45 seg descanso</small></td><td class="td-ser">7×12–15</td><td class="td-rest">30–45 seg</td><td class="td-tech"><span class="tb tb-fst">FST-7</span><span class="tb tb-fail">Falha</span></td></tr>
-  </tbody></table>
+  <div class="blk">Peito</div>
+  <table class="etable">
+    <thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
+    <tbody id="t-push1b"></tbody>
+  </table>
 
-  <div class="blk-label">Tríceps</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">08</td><td class="td-name">Tríceps Francês com Halteres<small>Cotovelos fixos, ROM completo</small></td><td class="td-ser">3×10–12</td><td class="td-rest">90 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">09</td><td class="td-name">Tríceps Corda — FST-7<small>Abre a corda na extensão total</small></td><td class="td-ser">7×15</td><td class="td-rest">30–45 seg</td><td class="td-tech"><span class="tb tb-fst">FST-7</span></td></tr>
-  </tbody></table>
+  <div class="blk">Tríceps</div>
+  <table class="etable">
+    <thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
+    <tbody id="t-push1c"></tbody>
+  </table>
 </div>
 </section>
 
-<!-- ══════════════════════════════════════
-     PULL A
-══════════════════════════════════════════ -->
-<section id="pull1" class="section">
-<div class="container">
-  <div class="sh"><h2 style="color:var(--pull)">PULL A</h2><span class="badge bd-pull">Costas · Bíceps · Trapézio</span></div>
-  <p class="section-desc">Foco em espessura de costas. Compostos pesados com progressão de carga. FST-7 em rosca alternada.</p>
-
-  <div class="blk-label">Costas — Espessura</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">01</td><td class="td-name">Puxada Máquina Hammer (Supinada)<small>Exercício âncora</small></td><td class="td-ser">2×15 / 1×12 / 1×10 / 1×8</td><td class="td-rest">2–3 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">02</td><td class="td-name">Remada Curvada Supinada (Barra)<small>Tronco a 45°, puxa para o umbigo</small></td><td class="td-ser">1×12 / 1×10 / 1×8</td><td class="td-rest">2–3 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span><span class="tb tb-fail">Falha</span></td></tr>
-    <tr><td class="td-num">03</td><td class="td-name">Remada Baixa com Triângulo<small>Retração escapular completa</small></td><td class="td-ser">3×10–12</td><td class="td-rest">90 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">04</td><td class="td-name">Barra Fixa Pronada (2× até falha)<small>Amplitude máxima, sem kipping</small></td><td class="td-ser">2×Falha</td><td class="td-rest">2 min</td><td class="td-tech"><span class="tb tb-fail">Falha</span></td></tr>
-    <tr><td class="td-num">05</td><td class="td-name">Pullover Máquina / Cabo<small>Tensão constante no arco</small></td><td class="td-ser">3×12–15</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-rp">Rest Pause</span></td></tr>
-  </tbody></table>
-
-  <div class="blk-label">Ombro Posterior · Trapézio</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">06</td><td class="td-name">Crucifixo Invertido na Máquina</td><td class="td-ser">4×15</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-fail">Falha</span></td></tr>
-    <tr><td class="td-num">07</td><td class="td-name">Encolhimento no Smith<small>Pausa 1 seg no topo</small></td><td class="td-ser">3×12</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-  </tbody></table>
-
-  <div class="blk-label">Bíceps</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">08</td><td class="td-name">Rosca Scott (Barra W)<small>Sem impulso, topo controlado</small></td><td class="td-ser">3×10–12</td><td class="td-rest">90 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">09</td><td class="td-name">Rosca Alternada — FST-7<small>Supinação completa no topo</small></td><td class="td-ser">7×12</td><td class="td-rest">30–45 seg</td><td class="td-tech"><span class="tb tb-fst">FST-7</span></td></tr>
-  </tbody></table>
+<!-- ══════════ PULL A ══════════ -->
+<section id="pull1" class="sec">
+<div class="wrap">
+  <div class="sh"><h2 style="color:var(--pull)">PULL A</h2><span class="badge bl">Costas · Bíceps · Trapézio</span></div>
+  <p class="sdesc">Foco em espessura de costas. Compostos pesados com progressão. FST-7 em rosca alternada.</p>
+  <div class="blk">Costas — Espessura</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-pull1"></tbody></table>
+  <div class="blk">Ombro Posterior · Trapézio</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-pull1b"></tbody></table>
+  <div class="blk">Bíceps</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-pull1c"></tbody></table>
 </div>
 </section>
 
-<!-- ══════════════════════════════════════
-     LEGS A
-══════════════════════════════════════════ -->
-<section id="legs1" class="section">
-<div class="container">
-  <div class="sh"><h2 style="color:var(--legs)">LEGS A</h2><span class="badge bd-legs">Foco: Quadríceps</span></div>
-  <p class="section-desc">Leg Press e V-Squat como compostos âncora. FST-7 em panturrilha em pé.</p>
-
-  <div class="blk-label">Quadríceps · Glúteo</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">01</td><td class="td-name">Leg Press 45°<small>Posição média, desça até 90° de joelho</small></td><td class="td-ser">2×15 / 1×12 / 1×10 / 1×8</td><td class="td-rest">2–3 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">02</td><td class="td-name">V-Squat (ou Pêndulo)<small>Profundidade total</small></td><td class="td-ser">1×12 / 1×10 / 1×8</td><td class="td-rest">2–3 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span><span class="tb tb-fail">Falha</span></td></tr>
-    <tr><td class="td-num">03</td><td class="td-name">Cadeira Extensora<small>Pausa 1 seg no topo, desce em 3 seg</small></td><td class="td-ser">4×12–15</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-drop">Drop Set</span><span class="tb tb-fail">Falha</span></td></tr>
-    <tr><td class="td-num">04</td><td class="td-name">Hip Thrust (Elevação Pélvica)<small>Glúteo máximo, não lombar</small></td><td class="td-ser">4×12</td><td class="td-rest">90 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">05</td><td class="td-name">Cadeira Abdutora</td><td class="td-ser">3×15–20</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-fail">Falha</span></td></tr>
-  </tbody></table>
-
-  <div class="blk-label">Posterior · Panturrilha</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">06</td><td class="td-name">Stiff com Barra<small>Quadril para trás, costas neutras</small></td><td class="td-ser">3×10–12</td><td class="td-rest">2 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">07</td><td class="td-name">Flexora Unilateral em Pé — Rest Pause</td><td class="td-ser">3×Falha (RP)</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-rp">Rest Pause</span></td></tr>
-    <tr><td class="td-num">08</td><td class="td-name">Panturrilha em Pé — FST-7<small>Amplitude total: calcanhar fundo → ponta alta</small></td><td class="td-ser">7×15–20</td><td class="td-rest">30–45 seg</td><td class="td-tech"><span class="tb tb-fst">FST-7</span></td></tr>
-  </tbody></table>
+<!-- ══════════ LEGS A ══════════ -->
+<section id="legs1" class="sec">
+<div class="wrap">
+  <div class="sh"><h2 style="color:var(--legs)">LEGS A</h2><span class="badge bg">Foco: Quadríceps</span></div>
+  <p class="sdesc">Leg Press e V-Squat como compostos âncora. FST-7 em panturrilha em pé.</p>
+  <div class="blk">Quadríceps · Glúteo</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-legs1"></tbody></table>
+  <div class="blk">Posterior · Panturrilha</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-legs1b"></tbody></table>
 </div>
 </section>
 
-<!-- ══════════════════════════════════════
-     PUSH B
-══════════════════════════════════════════ -->
-<section id="push2" class="section">
-<div class="container">
-  <div class="sh"><h2 style="color:var(--push)">PUSH B</h2><span class="badge bd-push">Peito · Ombro · Tríceps</span></div>
-  <p class="section-desc">Variação com mais cabos e máquinas. Ênfase em tensão constante no peito superior. Ombro protegido com Smith neutro.</p>
-  <div class="alert"><span class="alert-i">⚠️</span><span>Smith frontal neutro — cotovelos à frente do plano do ombro em todo o movimento.</span></div>
-
-  <div class="blk-label">Peito</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">01</td><td class="td-name">Supino Inclinado Máquina Convergente<small>2×15 sem carga para aquecer</small></td><td class="td-ser">2×15 / 1×12 / 1×10 / 1×8</td><td class="td-rest">2–3 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">02</td><td class="td-name">Crossover Cabo Alto (para baixo)<small>Peito baixo, cruza na frente do quadril</small></td><td class="td-ser">4×12–15</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-fail">Falha</span><span class="tb tb-rp">Rest Pause</span></td></tr>
-    <tr><td class="td-num">03</td><td class="td-name">Crucifixo Reto com Halteres<small>Cotovelos levemente fletidos</small></td><td class="td-ser">3×12</td><td class="td-rest">90 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">04</td><td class="td-name">Crossover Cabo Baixo (para cima)<small>Peito superior, mãos na altura do ombro</small></td><td class="td-ser">3×15</td><td class="td-rest">45 seg</td><td class="td-tech"><span class="tb tb-fst">FST prep</span></td></tr>
-    <tr><td class="td-num">05</td><td class="td-name">Peck Deck Inclinado — FST-7<small>Assento mais alto, ângulo inclinado</small></td><td class="td-ser">7×12–15</td><td class="td-rest">30–45 seg</td><td class="td-tech"><span class="tb tb-fst">FST-7</span></td></tr>
-  </tbody></table>
-
-  <div class="blk-label">Ombro · Tríceps</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">06</td><td class="td-name">Desenvolvimento Smith Neutro<small>Pegada fechada, cotovelos à frente</small></td><td class="td-ser">3×10–12</td><td class="td-rest">90 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span><span class="tb tb-warn">⚠</span></td></tr>
-    <tr><td class="td-num">07</td><td class="td-name">Elevação Lateral Halteres Unilateral<small>Sem trapézio</small></td><td class="td-ser">4×15</td><td class="td-rest">45 seg</td><td class="td-tech"><span class="tb tb-drop">Drop Set</span></td></tr>
-    <tr><td class="td-num">08</td><td class="td-name">Tríceps X Corda (empurra para baixo)</td><td class="td-ser">4×12</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">09</td><td class="td-name">Tríceps Pulley Invertido — FST-7<small>Pegada supinada, 7 séries</small></td><td class="td-ser">7×15</td><td class="td-rest">30–45 seg</td><td class="td-tech"><span class="tb tb-fst">FST-7</span></td></tr>
-  </tbody></table>
+<!-- ══════════ PUSH B ══════════ -->
+<section id="push2" class="sec">
+<div class="wrap">
+  <div class="sh"><h2 style="color:var(--push)">PUSH B</h2><span class="badge bp">Peito · Ombro · Tríceps</span></div>
+  <p class="sdesc">Variação com cabos e máquinas. Tensão constante no peito superior. Smith neutro para ombro.</p>
+  <div class="alert"><span>⚠️</span><span>Smith frontal neutro — cotovelos à frente do plano do ombro em todo o movimento.</span></div>
+  <div class="blk">Peito</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-push2"></tbody></table>
+  <div class="blk">Ombro · Tríceps</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-push2b"></tbody></table>
 </div>
 </section>
 
-<!-- ══════════════════════════════════════
-     PULL B
-══════════════════════════════════════════ -->
-<section id="pull2" class="section">
-<div class="container">
-  <div class="sh"><h2 style="color:var(--pull)">PULL B</h2><span class="badge bd-pull">Costas · Bíceps · Trapézio</span></div>
-  <p class="section-desc">Foco em largura de costas. Puxadas abertas, unilaterais e pullover. FST-7 em crucifixo invertido e rosca concentrada.</p>
-
-  <div class="blk-label">Costas — Largura</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">01</td><td class="td-name">Puxada Aberta Pronada Máquina<small>2×15 para aquecer</small></td><td class="td-ser">2×15 / 1×12 / 1×10 / 1×8</td><td class="td-rest">2–3 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">02</td><td class="td-name">Puxada Unilateral Supinada (Cabo)<small>Rotação natural no antebraço</small></td><td class="td-ser">3×12 cada</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-fail">Falha</span></td></tr>
-    <tr><td class="td-num">03</td><td class="td-name">Remada Baixa com Triângulo</td><td class="td-ser">1×12 / 1×10 / 1×8</td><td class="td-rest">2 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">04</td><td class="td-name">Pullover Cabo (braço reto)<small>Cotovelos levemente fletidos</small></td><td class="td-ser">4×12–15</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-rp">Rest Pause</span></td></tr>
-    <tr><td class="td-num">05</td><td class="td-name">Crucifixo Invertido Halteres — FST-7<small>7 séries leves, deltóide posterior</small></td><td class="td-ser">7×15</td><td class="td-rest">30–45 seg</td><td class="td-tech"><span class="tb tb-fst">FST-7</span></td></tr>
-  </tbody></table>
-
-  <div class="blk-label">Trapézio · Bíceps</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">06</td><td class="td-name">Encolhimento com Halteres<small>Pausa 2 seg no topo</small></td><td class="td-ser">4×12</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">07</td><td class="td-name">Rosca Martelo (Pegada Neutra)</td><td class="td-ser">3×10–12</td><td class="td-rest">90 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">08</td><td class="td-name">Rosca Concentrada — FST-7<small>Supinação total no topo</small></td><td class="td-ser">7×12</td><td class="td-rest">30–45 seg</td><td class="td-tech"><span class="tb tb-fst">FST-7</span></td></tr>
-  </tbody></table>
+<!-- ══════════ PULL B ══════════ -->
+<section id="pull2" class="sec">
+<div class="wrap">
+  <div class="sh"><h2 style="color:var(--pull)">PULL B</h2><span class="badge bl">Costas · Bíceps · Trapézio</span></div>
+  <p class="sdesc">Foco em largura de costas. Puxadas abertas e pullover. FST-7 em crucifixo invertido.</p>
+  <div class="blk">Costas — Largura</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-pull2"></tbody></table>
+  <div class="blk">Trapézio · Bíceps</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-pull2b"></tbody></table>
 </div>
 </section>
 
-<!-- ══════════════════════════════════════
-     LEGS B
-══════════════════════════════════════════ -->
-<section id="legs2" class="section">
-<div class="container">
-  <div class="sh"><h2 style="color:var(--legs)">LEGS B</h2><span class="badge bd-legs">Foco: Posterior · Glúteo</span></div>
-  <p class="section-desc">Hack Squat como âncora. Volume alto em isquiotibiais e glúteo. FST-7 em panturrilha sentada (sóleo).</p>
-
-  <div class="blk-label">Posterior · Glúteo</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">01</td><td class="td-name">Flexora Unilateral Deitada<small>Aquecimento obrigatório</small></td><td class="td-ser">2×15 cada</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">02</td><td class="td-name">Hack Squat — Rest Pause<small>Pé médio-alto, profundidade total</small></td><td class="td-ser">1×12 / 1×10 / 1×8 (RP)</td><td class="td-rest">2–3 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span><span class="tb tb-rp">Rest Pause</span></td></tr>
-    <tr><td class="td-num">03</td><td class="td-name">Stiff com Halteres<small>Maior amplitude que barra</small></td><td class="td-ser">4×10–12</td><td class="td-rest">2 min</td><td class="td-tech"><span class="tb tb-prog">Prog</span><span class="tb tb-fail">Falha</span></td></tr>
-    <tr><td class="td-num">04</td><td class="td-name">Cadeira Flexora — Rest Pause<small>Pé em dorsiflexão</small></td><td class="td-ser">3×Falha (RP)</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-rp">Rest Pause</span></td></tr>
-    <tr><td class="td-num">05</td><td class="td-name">Agachamento Smith (pé avançado)<small>Mais glúteo</small></td><td class="td-ser">3×12</td><td class="td-rest">90 seg</td><td class="td-tech"><span class="tb tb-prog">Prog</span></td></tr>
-    <tr><td class="td-num">06</td><td class="td-name">Cadeira Adutora</td><td class="td-ser">3×15–20</td><td class="td-rest">60 seg</td><td class="td-tech"><span class="tb tb-fail">Falha</span></td></tr>
-  </tbody></table>
-
-  <div class="blk-label">Panturrilha</div>
-  <table class="ex-table"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead>
-  <tbody>
-    <tr><td class="td-num">07</td><td class="td-name">Panturrilha Sentada — FST-7<small>Sóleo — joelho dobrado 90°, amplitude total</small></td><td class="td-ser">7×15–20</td><td class="td-rest">30–45 seg</td><td class="td-tech"><span class="tb tb-fst">FST-7</span></td></tr>
-  </tbody></table>
+<!-- ══════════ LEGS B ══════════ -->
+<section id="legs2" class="sec">
+<div class="wrap">
+  <div class="sh"><h2 style="color:var(--legs)">LEGS B</h2><span class="badge bg">Foco: Posterior · Glúteo</span></div>
+  <p class="sdesc">Hack Squat como âncora. Volume alto em isquiotibiais. FST-7 em panturrilha sentada.</p>
+  <div class="blk">Posterior · Glúteo</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-legs2"></tbody></table>
+  <div class="blk">Panturrilha</div>
+  <table class="etable"><thead><tr><th>#</th><th>Exercício</th><th>Séries × Reps</th><th>Descanso</th><th>Técnica</th></tr></thead><tbody id="t-legs2b"></tbody></table>
 </div>
 </section>
 
-<!-- ══════════════════════════════════════
-     PROGRESSÃO
-══════════════════════════════════════════ -->
-<section id="prog" class="section">
-<div class="container">
-  <div class="sh"><h2>PROGRESSÃO</h2><span class="badge bd-acc">Guia Semanal</span></div>
-  <p class="section-desc">Periodização ondulada de 4 semanas + deload. Baseada na metodologia Pacholok: variação de volume e intensidade para hipertrofia máxima sem platôs.</p>
-
-  <div class="prog-grid">
-    <div class="prog-card pc-1">
-      <div class="prog-week">Semana 1</div>
-      <div class="prog-name">Adaptação · Volume Moderado</div>
-      <ul class="prog-list">
-        <li>Aprenda os exercícios novos com técnica perfeita</li>
-        <li>Progressão série a série — comece conservador</li>
-        <li>FST-7 leve — foco no pump e conexão muscular</li>
-        <li>Rest Pause com apenas 1 extensão após a falha</li>
-        <li>Anote todas as cargas em cada série</li>
-      </ul>
-    </div>
-    <div class="prog-card pc-2">
-      <div class="prog-week">Semana 2</div>
-      <div class="prog-name">Sobrecarga · Aumenta Tudo</div>
-      <ul class="prog-list">
-        <li>Sobe 2,5–5kg em todos os compostos completados</li>
-        <li>FST-7: +1–2 reps por série ou carga levemente maior</li>
-        <li>Rest Pause: adicione 2ª extensão se possível</li>
-        <li>Drop Sets: reduza exatamente 30% na falha</li>
-        <li>Bata todas as marcas da Semana 1</li>
-      </ul>
-    </div>
-    <div class="prog-card pc-3">
-      <div class="prog-week">Semana 3</div>
-      <div class="prog-name">Intensidade Máxima · Schatz Mode</div>
-      <ul class="prog-list">
-        <li>Todos os exercícios Falha vão ao limite absoluto</li>
-        <li>+1 série nos exercícios principais se tiver energia</li>
-        <li>FST-7: carga máxima que permita 7 séries com qualidade</li>
-        <li>"Mais cinco" — quando quiser parar, faz mais cinco</li>
-        <li>Semana mais dura do ciclo — não economize</li>
-      </ul>
-    </div>
-    <div class="prog-card pc-4">
-      <div class="prog-week">Semana 4</div>
-      <div class="prog-name">Consolidação · Bate Recordes</div>
-      <ul class="prog-list">
-        <li>Bata o recorde de carga em pelo menos 2 exercícios</li>
-        <li>Volume da Sem. 3 com cargas iguais ou maiores</li>
-        <li>FST-7: mantenha ou adicione uma série</li>
-        <li>Foco total nos compostos (Leg Press, Remada, Supino)</li>
-        <li>Avalie pontos fracos para ajustar o próximo ciclo</li>
-      </ul>
-    </div>
-    <div class="prog-card pc-d">
-      <div class="prog-week">Deload</div>
-      <div class="prog-name">Semana 5 · Recuperação Ativa</div>
-      <ul class="prog-list">
-        <li>Volume total −40–50% (menos séries, não exercícios)</li>
-        <li>Cargas da Sem. 1–2, sem chegar à falha</li>
-        <li>Elimine FST-7 e Rest Pause na semana</li>
-        <li>Priorize sono e nutrição</li>
-        <li>Após deload: recomece com cargas 5–10% maiores</li>
-      </ul>
-    </div>
+<!-- ══════════ PROGRESSÃO ══════════ -->
+<section id="prog" class="sec">
+<div class="wrap">
+  <div class="sh"><h2>PROGRESSÃO</h2><span class="badge ba">Guia Semanal</span></div>
+  <p class="sdesc">Periodização ondulada 4 semanas + deload. Método Pacholok.</p>
+  <div class="pgrid">
+    <div class="pc pc1"><div class="pw">Semana 1</div><div class="pn">Adaptação · Volume Moderado</div><ul class="pl2"><li>Aprenda os exercícios com técnica perfeita</li><li>Progressão conservadora série a série</li><li>FST-7 leve — foco no pump</li><li>Rest Pause: 1 extensão após a falha</li><li>Anote todas as cargas</li></ul></div>
+    <div class="pc pc2"><div class="pw">Semana 2</div><div class="pn">Sobrecarga · Aumenta Tudo</div><ul class="pl2"><li>+2,5–5kg nos compostos completados</li><li>FST-7: +1–2 reps ou carga levemente maior</li><li>Rest Pause: adicione 2ª extensão</li><li>Drop Sets: −30% exato na falha</li><li>Bata todas as marcas da Sem. 1</li></ul></div>
+    <div class="pc pc3"><div class="pw">Semana 3</div><div class="pn">Intensidade Máxima · Schatz Mode</div><ul class="pl2"><li>Todos os Falha vão ao limite absoluto</li><li>+1 série nos principais se tiver energia</li><li>FST-7: carga máxima com 7 séries</li><li>"Mais cinco" quando quiser parar</li><li>Semana mais dura — não economize</li></ul></div>
+    <div class="pc pc4"><div class="pw">Semana 4</div><div class="pn">Consolidação · Bate Recordes</div><ul class="pl2"><li>Bata PR em pelo menos 2 exercícios</li><li>Volume Sem. 3 com cargas iguais ou maiores</li><li>FST-7: mantenha ou +1 série</li><li>Foco nos compostos âncora</li><li>Avalie pontos fracos para o próximo ciclo</li></ul></div>
+    <div class="pc pcd"><div class="pw">Deload</div><div class="pn">Semana 5 · Recuperação Ativa</div><ul class="pl2"><li>Volume −40–50% (menos séries)</li><li>Cargas Sem. 1–2, sem chegar à falha</li><li>Sem FST-7 e Rest Pause</li><li>Priorize sono e nutrição</li><li>Reinicie com cargas 5–10% maiores</li></ul></div>
   </div>
-
-  <hr class="div">
-
-  <div class="sh" style="margin-bottom:8px"><h2 style="font-size:26px">REGRAS DE PROGRESSÃO</h2></div>
-  <p class="section-desc" style="margin-bottom:20px">Critérios claros para saber quando avançar a carga.</p>
-  <div class="rules-grid">
-    <div class="rule-card"><span class="rule-icon">📈</span><div class="rule-title">Quando Subir</div><div class="rule-body">Completou <strong>todas as reps</strong> nas últimas 2 sessões com boa execução? Sobe <strong>2,5kg isolamentos</strong> / <strong>5kg compostos</strong>.</div></div>
-    <div class="rule-card"><span class="rule-icon">📉</span><div class="rule-title">Quando Manter</div><div class="rule-body">Não completou as reps ou execução ficou suja? <strong>Mantém o peso</strong>. Nunca sobe sacrificando técnica.</div></div>
-    <div class="rule-card"><span class="rule-icon">🔄</span><div class="rule-title">Troca de Exercício</div><div class="rule-body">Estagnação por <strong>3 semanas seguidas</strong>? Troque pela variação equivalente. Novo estímulo = nova curva de progressão.</div></div>
-    <div class="rule-card"><span class="rule-icon">⚡</span><div class="rule-title">FST-7 Progressão</div><div class="rule-body">Sem1→2: mesma carga, +1–2 reps. Sem3: suba leve a carga. Objetivo: <strong>pump máximo com qualidade</strong>. Descanso 30–45 seg é inegociável.</div></div>
+  <hr class="dv">
+  <div class="sh" style="margin-bottom:8px"><h2 style="font-size:24px">REGRAS</h2></div>
+  <div class="rgrid">
+    <div class="rc"><span class="ri">📈</span><div class="rt">Quando Subir</div><div class="rb">Completou <strong>todas as reps</strong> nas últimas 2 sessões? Sobe <strong>2,5kg isolamentos / 5kg compostos</strong>.</div></div>
+    <div class="rc"><span class="ri">📉</span><div class="rt">Quando Manter</div><div class="rb">Não completou ou execução suja? <strong>Mantém o peso.</strong> Nunca sobe sacrificando técnica.</div></div>
+    <div class="rc"><span class="ri">🔄</span><div class="rt">Troca de Exercício</div><div class="rb">Estagnação por <strong>3 semanas</strong>? Troca pela variação equivalente.</div></div>
+    <div class="rc"><span class="ri">⚡</span><div class="rt">FST-7 Progressão</div><div class="rb">Sem1→2: mesma carga, +reps. Sem3: suba a carga. <strong>30–45 seg descanso inegociável.</strong></div></div>
   </div>
 </div>
 </section>
 
-<!-- ══════════════════════════════════════
-     📈 REGISTRO DE CARGAS
-══════════════════════════════════════════ -->
-<section id="log" class="section">
-<div class="container">
-  <div class="sh"><h2>REGISTRO</h2><span class="badge bd-suc">📈 Cargas</span></div>
-  <p class="section-desc">Anote sua carga mais pesada de cada exercício por sessão. Os dados ficam salvos no seu dispositivo (localStorage) — funcionam offline e no celular.</p>
+<!-- ══════════ EVOLUÇÃO ══════════ -->
+<section id="evolucao" class="sec">
+<div class="wrap">
+  <div class="sh"><h2>EVOLUÇÃO</h2><span class="badge bs">📈 Cargas</span></div>
+  <p class="sdesc">Gráfico de progresso por exercício. Os registros são feitos direto em cada exercício nas abas do treino.</p>
 
-  <!-- Stats -->
-  <div class="stats-strip" id="stats-strip">
-    <div class="stat-card"><div class="stat-val" id="st-total">0</div><div class="stat-label">Registros</div></div>
-    <div class="stat-card"><div class="stat-val" id="st-ex">0</div><div class="stat-label">Exercícios</div></div>
-    <div class="stat-card"><div class="stat-val" id="st-days">0</div><div class="stat-label">Dias logados</div></div>
-    <div class="stat-card"><div class="stat-val" id="st-prs">0</div><div class="stat-label">PRs totais</div></div>
+  <div class="stats">
+    <div class="sc"><div class="sv" id="st-tot">0</div><div class="sl">Registros</div></div>
+    <div class="sc"><div class="sv" id="st-ex">0</div><div class="sl">Exercícios</div></div>
+    <div class="sc"><div class="sv" id="st-d">0</div><div class="sl">Dias</div></div>
+    <div class="sc"><div class="sv" id="st-pr">0</div><div class="sl">PRs</div></div>
   </div>
 
-  <!-- Form -->
-  <div class="log-form">
-    <h3>Nova Entrada</h3>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Treino</label>
-        <select class="log-select" id="f-session">
-          <option value="Push A">Push A</option>
-          <option value="Pull A">Pull A</option>
-          <option value="Legs A">Legs A</option>
-          <option value="Push B">Push B</option>
-          <option value="Pull B">Pull B</option>
-          <option value="Legs B">Legs B</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Exercício</label>
-        <select class="log-select" id="f-exercise" style="min-width:220px"></select>
-      </div>
-      <div class="form-group">
-        <label>Carga (kg)</label>
-        <input class="log-input" type="number" id="f-load" placeholder="Ex: 80" min="0" step="0.5">
-      </div>
-      <div class="form-group">
-        <label>Reps feitas</label>
-        <input class="log-input" type="number" id="f-reps" placeholder="Ex: 10" min="1" step="1">
-      </div>
-      <div class="form-group">
-        <label>Data</label>
-        <input class="log-input" type="date" id="f-date" style="width:auto">
-      </div>
-      <div class="form-group">
-        <label>&nbsp;</label>
-        <button class="btn btn-acc" onclick="addEntry()">+ Salvar</button>
-      </div>
-    </div>
-    <p class="form-hint" id="form-hint"></p>
-  </div>
-
-  <!-- Chart -->
   <div class="chart-wrap">
-    <div class="chart-header">
+    <div class="ch-head">
       <h3>Evolução de Carga</h3>
-      <select class="log-select chart-select" id="chart-ex" onchange="renderChart()"></select>
+      <select class="lsel" id="chart-sel" onchange="renderChart()"></select>
     </div>
-    <div id="chart-empty" class="empty-state" style="display:none">
-      <span class="ei">📊</span>
-      <p>Nenhum dado ainda para este exercício.<br>Adicione pelo menos 2 registros para ver o gráfico.</p>
-    </div>
+    <div id="chart-empty" class="empty" style="display:none"><span class="ei">📊</span><p>Nenhum dado ainda.<br>Clique em um exercício em qualquer aba do treino para registrar.</p></div>
     <canvas id="myChart"></canvas>
   </div>
 
-  <!-- Filter -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:32px;margin-bottom:12px;flex-wrap:wrap;gap:10px">
-    <div class="sh" style="margin-bottom:0"><h2 style="font-size:22px">Histórico</h2></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <select class="log-select" id="filter-session" onchange="renderEntries()" style="min-width:120px">
-        <option value="">Todos</option>
-        <option>Push A</option><option>Pull A</option><option>Legs A</option>
-        <option>Push B</option><option>Pull B</option><option>Legs B</option>
-      </select>
-      <button class="btn btn-ghost" onclick="exportData()">⬇ Exportar</button>
-      <button class="btn btn-ghost" onclick="importTrigger()">⬆ Importar</button>
-      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+    <div class="sh" style="margin-bottom:0"><h2 style="font-size:20px">Histórico Completo</h2></div>
+    <div class="export-row" style="margin-bottom:0">
+      <button class="btn-exp" onclick="exportData()">⬇ Exportar JSON</button>
+      <button class="btn-exp" onclick="document.getElementById('imp').click()">⬆ Importar</button>
+      <input type="file" id="imp" accept=".json" style="display:none" onchange="importData(event)">
     </div>
   </div>
 
-  <div id="log-entries" class="log-entries"></div>
+  <div class="hist-filter">
+    <select class="lsel" id="hf-sess" onchange="renderHist()" style="min-width:130px">
+      <option value="">Todos os treinos</option>
+      <option>Push A</option><option>Pull A</option><option>Legs A</option>
+      <option>Push B</option><option>Pull B</option><option>Legs B</option>
+    </select>
+  </div>
+  <div class="hist-list" id="hist-list"></div>
 </div>
 </section>
 
-<!-- FOOTER -->
-<footer>
-  <p>Treino PPL × 2 · Hipertrofia Máxima · 6 dias/semana</p>
-  <p>FST-7 · Rambod &nbsp;|&nbsp; Mais Cinco · Schatz &nbsp;|&nbsp; Prog. Carga · Pacholok</p>
+<footer style="border-top:1px solid var(--bord);padding:18px 24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+  <p style="font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)">Treino PPL × 2 · Hipertrofia Máxima</p>
+  <p style="font-family:'DM Mono',monospace;font-size:9.5px;color:var(--muted)">FST-7 · Rambod &nbsp;|&nbsp; Mais Cinco · Schatz &nbsp;|&nbsp; Prog. Carga · Pacholok</p>
 </footer>
 
 <script>
-/* ═══════════════════════════════════════════
-   EXERCISES PER SESSION
-═══════════════════════════════════════════ */
-const SESSION_EXERCISES = {
-  "Push A": ["Desenvolvimento Hammer (Neutro)","Elevação Lateral Máquina","Elevação Lateral Cabo Unilateral","Supino Inclinado Halteres","Supino Reto Halteres","Crucifixo Inclinado Cabo","Peck Deck FST-7","Tríceps Francês","Tríceps Corda FST-7"],
-  "Pull A": ["Puxada Hammer Supinada","Remada Curvada Supinada","Remada Baixa Triângulo","Barra Fixa","Pullover Máquina/Cabo","Crucifixo Invertido Máquina","Encolhimento Smith","Rosca Scott","Rosca Alternada FST-7"],
-  "Legs A": ["Leg Press 45°","V-Squat / Pêndulo","Cadeira Extensora","Hip Thrust","Cadeira Abdutora","Stiff Barra","Flexora Unilateral em Pé","Panturrilha em Pé FST-7"],
-  "Push B": ["Supino Inclinado Máquina","Crossover Cabo Alto","Crucifixo Reto Halteres","Crossover Cabo Baixo","Peck Deck Inclinado FST-7","Desenvolvimento Smith Neutro","Elevação Lateral Halteres Unilateral","Tríceps X Corda","Tríceps Pulley Invertido FST-7"],
-  "Pull B": ["Puxada Aberta Máquina","Puxada Unilateral Cabo","Remada Baixa Triângulo","Pullover Cabo","Crucifixo Invertido Halteres FST-7","Encolhimento Halteres","Rosca Martelo","Rosca Concentrada FST-7"],
-  "Legs B": ["Flexora Unilateral Deitada","Hack Squat","Stiff Halteres","Cadeira Flexora","Agachamento Smith","Cadeira Adutora","Panturrilha Sentada FST-7"]
+/* ════════════════════════════════════════
+   EXERCISE DATA
+════════════════════════════════════════ */
+const EXERCISES = {
+  "t-push1": [
+    {n:"01",name:"Desenvolvimento Hammer (Neutro)",sub:"Pegada neutra, cotovelos à frente",ser:"2×15 / 1×12 / 1×10 / 1×8",rest:"2–3 min",tech:'<span class="tb tp2">Prog</span><span class="tb tw">⚠</span>'},
+    {n:"02",name:"Elevação Lateral Máquina",sub:"Pico de contração no topo",ser:"4×12–15",rest:"60–90 seg",tech:'<span class="tb tfa">Falha</span>'},
+    {n:"03",name:"Elevação Lateral Cabo Unilateral",sub:"Maior tensão no início",ser:"3×15",rest:"45 seg",tech:'<span class="tb tf">FST prep</span>'},
+  ],
+  "t-push1b": [
+    {n:"04",name:"Supino Inclinado Halteres",sub:"45°, explosivo na subida",ser:"1×12 / 1×10 / 1×8",rest:"2–3 min",tech:'<span class="tb tp2">Prog</span><span class="tb tfa">Falha</span>'},
+    {n:"05",name:"Supino Reto Halteres",sub:"Amplitude máxima, não trave no topo",ser:"1×12 / 1×10 / 1×8",rest:"2–3 min",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"06",name:"Crucifixo Inclinado Cabo",sub:"Cabo alto, arco constante",ser:"3×12–15",rest:"60 seg",tech:'<span class="tb tr">Rest Pause</span>'},
+    {n:"07",name:"Peck Deck — FST-7",sub:"7 séries, 30–45 seg descanso",ser:"7×12–15",rest:"30–45 seg",tech:'<span class="tb tf">FST-7</span><span class="tb tfa">Falha</span>'},
+  ],
+  "t-push1c": [
+    {n:"08",name:"Tríceps Francês Halteres",sub:"Cotovelos fixos, ROM completo",ser:"3×10–12",rest:"90 seg",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"09",name:"Tríceps Corda — FST-7",sub:"Abre a corda na extensão total",ser:"7×15",rest:"30–45 seg",tech:'<span class="tb tf">FST-7</span>'},
+  ],
+  "t-pull1": [
+    {n:"01",name:"Puxada Hammer Supinada",sub:"Exercício âncora",ser:"2×15 / 1×12 / 1×10 / 1×8",rest:"2–3 min",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"02",name:"Remada Curvada Supinada",sub:"Tronco 45°, puxa para o umbigo",ser:"1×12 / 1×10 / 1×8",rest:"2–3 min",tech:'<span class="tb tp2">Prog</span><span class="tb tfa">Falha</span>'},
+    {n:"03",name:"Remada Baixa Triângulo",sub:"Retração escapular completa",ser:"3×10–12",rest:"90 seg",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"04",name:"Barra Fixa Pronada",sub:"Amplitude máxima, sem kipping",ser:"2×Falha",rest:"2 min",tech:'<span class="tb tfa">Falha</span>'},
+    {n:"05",name:"Pullover Máquina/Cabo",sub:"Tensão constante no arco",ser:"3×12–15",rest:"60 seg",tech:'<span class="tb tr">Rest Pause</span>'},
+  ],
+  "t-pull1b": [
+    {n:"06",name:"Crucifixo Invertido Máquina",sub:"Foco no deltóide posterior",ser:"4×15",rest:"60 seg",tech:'<span class="tb tfa">Falha</span>'},
+    {n:"07",name:"Encolhimento Smith",sub:"Pausa 1 seg no topo",ser:"3×12",rest:"60 seg",tech:'<span class="tb tp2">Prog</span>'},
+  ],
+  "t-pull1c": [
+    {n:"08",name:"Rosca Scott Barra W",sub:"Sem impulso, topo controlado",ser:"3×10–12",rest:"90 seg",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"09",name:"Rosca Alternada — FST-7",sub:"Supinação completa no topo",ser:"7×12",rest:"30–45 seg",tech:'<span class="tb tf">FST-7</span>'},
+  ],
+  "t-legs1": [
+    {n:"01",name:"Leg Press 45°",sub:"Posição média, 90° de joelho",ser:"2×15 / 1×12 / 1×10 / 1×8",rest:"2–3 min",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"02",name:"V-Squat / Pêndulo",sub:"Profundidade total",ser:"1×12 / 1×10 / 1×8",rest:"2–3 min",tech:'<span class="tb tp2">Prog</span><span class="tb tfa">Falha</span>'},
+    {n:"03",name:"Cadeira Extensora",sub:"Pausa 1 seg no topo, desce em 3 seg",ser:"4×12–15",rest:"60 seg",tech:'<span class="tb td2">Drop Set</span><span class="tb tfa">Falha</span>'},
+    {n:"04",name:"Hip Thrust",sub:"Glúteo máximo, não lombar",ser:"4×12",rest:"90 seg",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"05",name:"Cadeira Abdutora",sub:"",ser:"3×15–20",rest:"60 seg",tech:'<span class="tb tfa">Falha</span>'},
+  ],
+  "t-legs1b": [
+    {n:"06",name:"Stiff Barra",sub:"Quadril para trás, costas neutras",ser:"3×10–12",rest:"2 min",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"07",name:"Flexora Unilateral em Pé",sub:"Rest Pause até a falha",ser:"3×Falha (RP)",rest:"60 seg",tech:'<span class="tb tr">Rest Pause</span>'},
+    {n:"08",name:"Panturrilha em Pé — FST-7",sub:"Amplitude total: calcanhar fundo → ponta alta",ser:"7×15–20",rest:"30–45 seg",tech:'<span class="tb tf">FST-7</span>'},
+  ],
+  "t-push2": [
+    {n:"01",name:"Supino Inclinado Máquina Convergente",sub:"2×15 sem carga para aquecer",ser:"2×15 / 1×12 / 1×10 / 1×8",rest:"2–3 min",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"02",name:"Crossover Cabo Alto",sub:"Peito baixo, cruza na frente do quadril",ser:"4×12–15",rest:"60 seg",tech:'<span class="tb tfa">Falha</span><span class="tb tr">RP</span>'},
+    {n:"03",name:"Crucifixo Reto Halteres",sub:"Cotovelos levemente fletidos",ser:"3×12",rest:"90 seg",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"04",name:"Crossover Cabo Baixo",sub:"Peito superior, mãos na altura do ombro",ser:"3×15",rest:"45 seg",tech:'<span class="tb tf">FST prep</span>'},
+    {n:"05",name:"Peck Deck Inclinado — FST-7",sub:"Assento mais alto, ângulo inclinado",ser:"7×12–15",rest:"30–45 seg",tech:'<span class="tb tf">FST-7</span>'},
+  ],
+  "t-push2b": [
+    {n:"06",name:"Desenvolvimento Smith Neutro",sub:"Pegada fechada, cotovelos à frente",ser:"3×10–12",rest:"90 seg",tech:'<span class="tb tp2">Prog</span><span class="tb tw">⚠</span>'},
+    {n:"07",name:"Elevação Lateral Halteres Unilateral",sub:"Sem trapézio",ser:"4×15",rest:"45 seg",tech:'<span class="tb td2">Drop Set</span>'},
+    {n:"08",name:"Tríceps X Corda",sub:"Tronco levemente inclinado",ser:"4×12",rest:"60 seg",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"09",name:"Tríceps Pulley Invertido — FST-7",sub:"Pegada supinada, 7 séries",ser:"7×15",rest:"30–45 seg",tech:'<span class="tb tf">FST-7</span>'},
+  ],
+  "t-pull2": [
+    {n:"01",name:"Puxada Aberta Pronada",sub:"2×15 para aquecer",ser:"2×15 / 1×12 / 1×10 / 1×8",rest:"2–3 min",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"02",name:"Puxada Unilateral Supinada Cabo",sub:"Rotação natural no antebraço",ser:"3×12 cada",rest:"60 seg",tech:'<span class="tb tfa">Falha</span>'},
+    {n:"03",name:"Remada Baixa Triângulo",sub:"",ser:"1×12 / 1×10 / 1×8",rest:"2 min",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"04",name:"Pullover Cabo Braço Reto",sub:"Cotovelos levemente fletidos",ser:"4×12–15",rest:"60 seg",tech:'<span class="tb tr">Rest Pause</span>'},
+    {n:"05",name:"Crucifixo Invertido Halteres — FST-7",sub:"7 séries leves, deltóide posterior",ser:"7×15",rest:"30–45 seg",tech:'<span class="tb tf">FST-7</span>'},
+  ],
+  "t-pull2b": [
+    {n:"06",name:"Encolhimento Halteres",sub:"Pausa 2 seg no topo",ser:"4×12",rest:"60 seg",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"07",name:"Rosca Martelo Pegada Neutra",sub:"",ser:"3×10–12",rest:"90 seg",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"08",name:"Rosca Concentrada — FST-7",sub:"Supinação total no topo",ser:"7×12",rest:"30–45 seg",tech:'<span class="tb tf">FST-7</span>'},
+  ],
+  "t-legs2": [
+    {n:"01",name:"Flexora Unilateral Deitada",sub:"Aquecimento obrigatório",ser:"2×15 cada",rest:"60 seg",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"02",name:"Hack Squat",sub:"Pé médio-alto, profundidade total",ser:"1×12 / 1×10 / 1×8 (RP)",rest:"2–3 min",tech:'<span class="tb tp2">Prog</span><span class="tb tr">RP</span>'},
+    {n:"03",name:"Stiff Halteres",sub:"Maior amplitude que barra",ser:"4×10–12",rest:"2 min",tech:'<span class="tb tp2">Prog</span><span class="tb tfa">Falha</span>'},
+    {n:"04",name:"Cadeira Flexora",sub:"Pé em dorsiflexão",ser:"3×Falha (RP)",rest:"60 seg",tech:'<span class="tb tr">Rest Pause</span>'},
+    {n:"05",name:"Agachamento Smith Pé Avançado",sub:"Mais glúteo",ser:"3×12",rest:"90 seg",tech:'<span class="tb tp2">Prog</span>'},
+    {n:"06",name:"Cadeira Adutora",sub:"",ser:"3×15–20",rest:"60 seg",tech:'<span class="tb tfa">Falha</span>'},
+  ],
+  "t-legs2b": [
+    {n:"07",name:"Panturrilha Sentada — FST-7",sub:"Sóleo — joelho 90°, amplitude total",ser:"7×15–20",rest:"30–45 seg",tech:'<span class="tb tf">FST-7</span>'},
+  ],
 };
 
-/* ═══════════════════════════════════════════
-   TAB NAVIGATION
-═══════════════════════════════════════════ */
-const tabMap = ['visao','push1','pull1','legs1','push2','pull2','legs2','prog','log'];
+// Which section each tbody belongs to
+const TBODY_SESSION = {
+  "t-push1":"Push A","t-push1b":"Push A","t-push1c":"Push A",
+  "t-pull1":"Pull A","t-pull1b":"Pull A","t-pull1c":"Pull A",
+  "t-legs1":"Legs A","t-legs1b":"Legs A",
+  "t-push2":"Push B","t-push2b":"Push B",
+  "t-pull2":"Pull B","t-pull2b":"Pull B",
+  "t-legs2":"Legs B","t-legs2b":"Legs B",
+};
 
-function show(id) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  const idx = tabMap.indexOf(id);
-  if(idx >= 0) document.querySelectorAll('.tab-btn')[idx].classList.add('active');
-  const hero = document.getElementById('hero-strip');
-  hero.classList.toggle('active', id === 'visao');
-  window.scrollTo({top:0, behavior:'smooth'});
-  if(id === 'log') { renderEntries(); renderChart(); updateStats(); }
+/* ════════════════════════════════════════
+   DATA
+════════════════════════════════════════ */
+function getData(){ try{return JSON.parse(localStorage.getItem('tlog')||'[]')}catch{return[]} }
+function saveData(d){ localStorage.setItem('tlog',JSON.stringify(d)) }
+
+/* ════════════════════════════════════════
+   RENDER TABLES
+════════════════════════════════════════ */
+function renderTables(){
+  Object.entries(EXERCISES).forEach(([tbodyId, rows]) => {
+    const tbody = document.getElementById(tbodyId);
+    if(!tbody) return;
+    const session = TBODY_SESSION[tbodyId];
+    tbody.innerHTML = '';
+    rows.forEach(ex => {
+      const uid = tbodyId + '_' + ex.n; // unique id for this exercise row
+      const exKey = ex.name; // use name as key for data lookup
+
+      // ── main row ──
+      const tr = document.createElement('tr');
+      tr.className = 'ex-row';
+      tr.dataset.uid = uid;
+      tr.dataset.exkey = exKey;
+      tr.dataset.session = session;
+      tr.innerHTML = `
+        <td colspan="5">
+          <div class="cell" style="display:flex;align-items:flex-start;gap:0;width:100%">
+            <div style="display:flex;align-items:flex-start;flex:1;gap:0;cursor:pointer" onclick="togglePanel('${uid}')">
+              <span class="td-num">${ex.n}</span>
+              <div class="td-name-wrap" style="flex:1">
+                <div class="td-name">${ex.name}<span class="ex-chevron">▶</span>${ex.sub?`<small>${ex.sub}</small>`:''}
+                </div>
+              </div>
+              <span class="td-ser" style="padding:2px 10px;min-width:150px">${ex.ser}</span>
+              <span class="td-rest" style="padding:2px 10px;min-width:80px">${ex.rest}</span>
+              <span class="td-tech" style="padding:2px 8px">${ex.tech}</span>
+            </div>
+          </div>
+        </td>`;
+      tbody.appendChild(tr);
+
+      // ── log panel row ──
+      const ltr = document.createElement('tr');
+      ltr.className = 'log-panel';
+      ltr.id = 'panel-' + uid;
+      ltr.innerHTML = `<td colspan="5"><div class="log-inner" id="inner-${uid}"></div></td>`;
+      tbody.appendChild(ltr);
+    });
+  });
 }
 
-// Fix tab buttons onclick to pass id properly
-document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-  btn.onclick = () => show(tabMap[i]);
-});
+/* ════════════════════════════════════════
+   TOGGLE PANEL
+════════════════════════════════════════ */
+function togglePanel(uid){
+  const row = document.querySelector(`[data-uid="${uid}"]`);
+  const panel = document.getElementById('panel-' + uid);
+  const isOpen = panel.classList.contains('open');
 
-/* ═══════════════════════════════════════════
-   THEME
-═══════════════════════════════════════════ */
-function toggleTheme() {
-  const html = document.documentElement;
-  const isDark = html.getAttribute('data-theme') === 'dark';
-  const next = isDark ? 'light' : 'dark';
-  html.setAttribute('data-theme', next);
-  document.getElementById('theme-lbl').textContent = next === 'dark' ? 'Dark' : 'Light';
-  localStorage.setItem('theme', next);
-  if(chart) renderChart();
-}
-(function initTheme() {
-  const saved = localStorage.getItem('theme') || 'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  document.getElementById('theme-lbl').textContent = saved === 'dark' ? 'Dark' : 'Light';
-})();
+  // close all panels in this table first
+  const tbody = row.parentElement;
+  tbody.querySelectorAll('.log-panel.open').forEach(p => {
+    p.classList.remove('open');
+    const r = tbody.querySelector(`[data-uid="${p.id.replace('panel-','')}"]`);
+    if(r) r.classList.remove('open');
+  });
 
-/* ═══════════════════════════════════════════
-   LOG DATA
-═══════════════════════════════════════════ */
-function getData() {
-  try { return JSON.parse(localStorage.getItem('treino_log') || '[]'); } catch { return []; }
-}
-function saveData(d) { localStorage.setItem('treino_log', JSON.stringify(d)); }
-
-/* populate exercise dropdown on session change */
-function populateExercises() {
-  const session = document.getElementById('f-session').value;
-  const exSel = document.getElementById('f-exercise');
-  exSel.innerHTML = SESSION_EXERCISES[session].map(e => `<option>${e}</option>`).join('');
-  updateFormHint();
-}
-document.getElementById('f-session').addEventListener('change', populateExercises);
-
-function updateFormHint() {
-  const ex = document.getElementById('f-exercise').value;
-  const data = getData().filter(d => d.exercise === ex);
-  const hint = document.getElementById('form-hint');
-  if(!data.length) { hint.textContent = 'Primeiro registro deste exercício.'; return; }
-  const best = Math.max(...data.map(d => d.load));
-  const last = data[data.length-1];
-  hint.textContent = `Último registro: ${last.load}kg × ${last.reps} reps (${last.date}). PR: ${best}kg`;
-}
-document.getElementById('f-exercise').addEventListener('change', updateFormHint);
-
-function addEntry() {
-  const session  = document.getElementById('f-session').value;
-  const exercise = document.getElementById('f-exercise').value;
-  const load     = parseFloat(document.getElementById('f-load').value);
-  const reps     = parseInt(document.getElementById('f-reps').value);
-  const date     = document.getElementById('f-date').value;
-
-  if(!exercise || isNaN(load) || load <= 0 || isNaN(reps) || !date) {
-    alert('Preencha todos os campos!'); return;
-  }
-
-  const data = getData();
-  const prevBest = data.filter(d => d.exercise === exercise).reduce((m,d) => Math.max(m,d.load), 0);
-  const isPR = load > prevBest && prevBest > 0;
-
-  data.push({ id: Date.now(), session, exercise, load, reps, date, pr: isPR });
-  saveData(data);
-
-  document.getElementById('f-load').value = '';
-  document.getElementById('f-reps').value = '';
-  updateFormHint();
-  renderEntries();
-  renderChart();
-  updateStats();
-
-  if(isPR) {
-    const hint = document.getElementById('form-hint');
-    hint.innerHTML = `🏆 <strong style="color:var(--accent)">NOVO PR! ${load}kg — anterior era ${prevBest}kg</strong>`;
+  if(!isOpen){
+    panel.classList.add('open');
+    row.classList.add('open');
+    buildPanel(uid, row.dataset.exkey, row.dataset.session);
   }
 }
 
-/* ═══════════════════════════════════════════
-   RENDER ENTRIES
-═══════════════════════════════════════════ */
-function renderEntries() {
-  const filterSession = document.getElementById('filter-session').value;
-  let data = getData();
-  if(filterSession) data = data.filter(d => d.session === filterSession);
-  data = [...data].reverse();
+/* ════════════════════════════════════════
+   BUILD LOG PANEL
+════════════════════════════════════════ */
+function buildPanel(uid, exKey, session){
+  const inner = document.getElementById('inner-' + uid);
+  const today = new Date().toISOString().slice(0,10);
+  const data = getData().filter(d => d.exercise === exKey);
+  const best = data.length ? Math.max(...data.map(d=>d.load)) : 0;
 
-  const container = document.getElementById('log-entries');
-  if(!data.length) {
-    container.innerHTML = `<div class="empty-state"><span class="ei">📋</span><p>Nenhum registro ainda.<br>Use o formulário acima para começar a anotar suas cargas.</p></div>`;
-    return;
-  }
+  inner.innerHTML = `
+    <div class="log-form-row">
+      <div class="lf-group">
+        <label>Carga (kg)</label>
+        <input class="lf-input" type="number" id="f-load-${uid}" placeholder="Ex: 80" min="0" step="0.5">
+      </div>
+      <div class="lf-group">
+        <label>Reps</label>
+        <input class="lf-input" type="number" id="f-reps-${uid}" placeholder="Ex: 10" min="1">
+      </div>
+      <div class="lf-group">
+        <label>Data</label>
+        <input class="lf-input" type="date" id="f-date-${uid}" value="${today}">
+      </div>
+      <div class="lf-group" style="justify-content:flex-end">
+        <button class="btn-save" onclick="saveEntry('${uid}','${exKey.replace(/'/g,"\\'")}','${session}')">+ Salvar</button>
+      </div>
+    </div>
+    <div class="pr-hint" id="hint-${uid}">${best > 0 ? `PR atual: <strong>${best}kg</strong>` : 'Primeiro registro deste exercício'}</div>
+    <div class="log-hist" id="hist-${uid}">
+      ${renderPanelHist(data)}
+    </div>`;
+}
 
-  container.innerHTML = data.map(entry => {
-    const sessionColor = {
-      'Push A':'var(--push)','Push B':'var(--push)',
-      'Pull A':'var(--pull)','Pull B':'var(--pull)',
-      'Legs A':'var(--legs)','Legs B':'var(--legs)'
-    }[entry.session] || 'var(--accent)';
-    return `
-    <div class="entry-card" id="entry-${entry.id}">
-      <div class="entry-left">
-        <div class="entry-ex">
-          ${entry.exercise}
-          ${entry.pr ? '<span class="pr-badge">PR 🏆</span>' : ''}
-        </div>
-        <div class="entry-meta">
-          <span style="color:${sessionColor}">${entry.session}</span>
-          <span>${entry.date}</span>
-          <span>${entry.reps} reps</span>
+function renderPanelHist(data){
+  if(!data.length) return '<div class="no-entries">Nenhum registro ainda.</div>';
+  return `<div class="log-hist-title">Histórico</div>` +
+    [...data].reverse().slice(0,8).map(e => `
+    <div class="lentry" id="le-${e.id}">
+      <div class="lentry-main">
+        <div class="lentry-load">${e.load}<span>kg</span></div>
+        <div class="lentry-meta">
+          <strong>${e.reps} reps${e.pr?'<span class="pr-tag">PR 🏆</span>':''}</strong>
+          <span>${e.date}</span>
         </div>
       </div>
-      <div class="entry-load">${entry.load}<span>kg</span></div>
-      <button class="btn btn-danger" onclick="deleteEntry(${entry.id})">✕</button>
-    </div>`;
-  }).join('');
-
-  updateChartSelect();
+      <button class="btn-del" onclick="delEntry(${e.id},'${e.exercise.replace(/'/g,"\\'")}')">✕</button>
+    </div>`).join('');
 }
 
-function deleteEntry(id) {
-  if(!confirm('Remover este registro?')) return;
-  const data = getData().filter(d => d.id !== id);
-  saveData(data);
-  renderEntries();
-  renderChart();
+/* ════════════════════════════════════════
+   SAVE ENTRY
+════════════════════════════════════════ */
+function saveEntry(uid, exKey, session){
+  const load = parseFloat(document.getElementById('f-load-'+uid).value);
+  const reps = parseInt(document.getElementById('f-reps-'+uid).value);
+  const date = document.getElementById('f-date-'+uid).value;
+  if(isNaN(load)||load<=0||isNaN(reps)||!date){
+    alert('Preencha carga, reps e data!'); return;
+  }
+  const all = getData();
+  const prev = all.filter(d=>d.exercise===exKey);
+  const prevBest = prev.length ? Math.max(...prev.map(d=>d.load)) : 0;
+  const isPR = load > prevBest && prevBest > 0;
+  const entry = {id:Date.now(), session, exercise:exKey, load, reps, date, pr:isPR};
+  all.push(entry);
+  saveData(all);
+
+  // clear inputs
+  document.getElementById('f-load-'+uid).value = '';
+  document.getElementById('f-reps-'+uid).value = '';
+
+  // update hint
+  const newBest = Math.max(...all.filter(d=>d.exercise===exKey).map(d=>d.load));
+  const hint = document.getElementById('hint-'+uid);
+  if(isPR){
+    hint.innerHTML = `🏆 <strong style="color:var(--accent)">NOVO PR! ${load}kg — anterior era ${prevBest}kg</strong>`;
+  } else {
+    hint.innerHTML = `PR atual: <strong>${newBest}kg</strong>`;
+  }
+
+  // refresh history in panel
+  const histEl = document.getElementById('hist-'+uid);
+  const updated = getData().filter(d=>d.exercise===exKey);
+  histEl.innerHTML = renderPanelHist(updated);
+
   updateStats();
+  updateChartSel();
 }
 
-/* ═══════════════════════════════════════════
+/* ════════════════════════════════════════
+   DELETE ENTRY
+════════════════════════════════════════ */
+function delEntry(id, exKey){
+  if(!confirm('Remover este registro?')) return;
+  const all = getData().filter(d=>d.id!==id);
+  saveData(all);
+  // find the open panel for this exercise and refresh
+  document.querySelectorAll('.ex-row.open').forEach(row => {
+    if(row.dataset.exkey === exKey){
+      const uid = row.dataset.uid;
+      const data = all.filter(d=>d.exercise===exKey);
+      document.getElementById('hist-'+uid).innerHTML = renderPanelHist(data);
+      const best = data.length ? Math.max(...data.map(d=>d.load)) : 0;
+      const hint = document.getElementById('hint-'+uid);
+      if(hint) hint.innerHTML = best > 0 ? `PR atual: <strong>${best}kg</strong>` : 'Primeiro registro deste exercício';
+    }
+  });
+  updateStats();
+  updateChartSel();
+  renderHist();
+}
+
+/* ════════════════════════════════════════
    STATS
-═══════════════════════════════════════════ */
-function updateStats() {
-  const data = getData();
-  const uniqueEx   = [...new Set(data.map(d => d.exercise))].length;
-  const uniqueDays = [...new Set(data.map(d => d.date))].length;
-  const prs        = data.filter(d => d.pr).length;
-  document.getElementById('st-total').textContent = data.length;
-  document.getElementById('st-ex').textContent    = uniqueEx;
-  document.getElementById('st-days').textContent  = uniqueDays;
-  document.getElementById('st-prs').textContent   = prs;
+════════════════════════════════════════ */
+function updateStats(){
+  const d = getData();
+  document.getElementById('st-tot').textContent = d.length;
+  document.getElementById('st-ex').textContent  = [...new Set(d.map(x=>x.exercise))].length;
+  document.getElementById('st-d').textContent   = [...new Set(d.map(x=>x.date))].length;
+  document.getElementById('st-pr').textContent  = d.filter(x=>x.pr).length;
 }
 
-/* ═══════════════════════════════════════════
+/* ════════════════════════════════════════
    CHART
-═══════════════════════════════════════════ */
+════════════════════════════════════════ */
 let chart = null;
 
-function updateChartSelect() {
-  const data = getData();
-  const exercises = [...new Set(data.map(d => d.exercise))];
-  const sel = document.getElementById('chart-ex');
-  const current = sel.value;
-  sel.innerHTML = exercises.map(e => `<option ${e===current?'selected':''}>${e}</option>`).join('');
-  if(!sel.value && exercises.length) sel.value = exercises[0];
+function updateChartSel(){
+  const d = getData();
+  const exs = [...new Set(d.map(x=>x.exercise))];
+  const sel = document.getElementById('chart-sel');
+  const cur = sel.value;
+  sel.innerHTML = exs.map(e=>`<option ${e===cur?'selected':''}>${e}</option>`).join('');
+  if(!sel.value && exs.length) sel.value = exs[0];
 }
 
-function renderChart() {
-  updateChartSelect();
-  const ex = document.getElementById('chart-ex').value;
+function renderChart(){
+  updateChartSel();
+  const ex = document.getElementById('chart-sel').value;
   const empty = document.getElementById('chart-empty');
   const canvas = document.getElementById('myChart');
-  if(!ex) { empty.style.display='block'; canvas.style.display='none'; return; }
-
-  const data = getData()
-    .filter(d => d.exercise === ex)
-    .sort((a,b) => a.date.localeCompare(b.date));
-
-  if(data.length < 1) { empty.style.display='block'; canvas.style.display='none'; return; }
+  if(!ex){ empty.style.display='block'; canvas.style.display='none'; return; }
+  const data = getData().filter(d=>d.exercise===ex).sort((a,b)=>a.date.localeCompare(b.date));
+  if(data.length<1){ empty.style.display='block'; canvas.style.display='none'; return; }
   empty.style.display='none'; canvas.style.display='block';
-
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const labels = data.map(d => d.date);
-  const loads  = data.map(d => d.load);
-  const accent = '#e8ff47';
-  const gridC  = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
-  const textC  = isDark ? '#6b6b80' : '#909099';
-
+  const isDark = document.documentElement.getAttribute('data-theme')==='dark';
+  const gc = isDark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.06)';
+  const tc = isDark?'#5a5a72':'#909099';
   if(chart) chart.destroy();
-  chart = new Chart(canvas, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Carga (kg)',
-        data: loads,
-        borderColor: accent,
-        backgroundColor: isDark ? 'rgba(232,255,71,0.08)' : 'rgba(232,255,71,0.15)',
-        borderWidth: 2,
-        pointBackgroundColor: data.map(d => d.pr ? '#ff6b35' : accent),
-        pointRadius: data.map(d => d.pr ? 7 : 4),
-        pointBorderWidth: 0,
-        fill: true,
-        tension: 0.35
+  chart = new Chart(canvas,{
+    type:'line',
+    data:{
+      labels:data.map(d=>d.date),
+      datasets:[{
+        label:'Carga (kg)', data:data.map(d=>d.load),
+        borderColor:'#e8ff47',
+        backgroundColor:isDark?'rgba(232,255,71,0.07)':'rgba(232,255,71,0.13)',
+        borderWidth:2,
+        pointBackgroundColor:data.map(d=>d.pr?'#ff6b35':'#e8ff47'),
+        pointRadius:data.map(d=>d.pr?7:4),
+        pointBorderWidth:0,
+        fill:true, tension:.35
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: isDark ? '#18181d' : '#fff',
-          borderColor: isDark ? '#252530' : '#d8d8d0',
-          borderWidth: 1,
-          titleColor: isDark ? '#f0f0f5' : '#18181d',
-          bodyColor: isDark ? '#a0a0b8' : '#555565',
-          callbacks: {
-            label: ctx => {
-              const d = data[ctx.dataIndex];
-              return ` ${d.load}kg × ${d.reps} reps${d.pr ? ' 🏆 PR' : ''}`;
-            }
-          }
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:isDark?'#18181d':'#fff',
+          borderColor:isDark?'#252530':'#d4d4cc',
+          borderWidth:1,
+          titleColor:isDark?'#f0f0f5':'#18181d',
+          bodyColor:isDark?'#a0a0b8':'#55555f',
+          callbacks:{label:ctx=>{const d=data[ctx.dataIndex];return ` ${d.load}kg × ${d.reps} reps${d.pr?' 🏆 PR':''}`}}
         }
       },
-      scales: {
-        x: {
-          ticks: { color: textC, font: { family:'DM Mono', size:10 } },
-          grid: { color: gridC },
-          border: { color: gridC }
-        },
-        y: {
-          ticks: { color: textC, font: { family:'DM Mono', size:10 }, callback: v => v+'kg' },
-          grid: { color: gridC },
-          border: { color: gridC }
-        }
+      scales:{
+        x:{ticks:{color:tc,font:{family:'DM Mono',size:10}},grid:{color:gc},border:{color:gc}},
+        y:{ticks:{color:tc,font:{family:'DM Mono',size:10},callback:v=>v+'kg'},grid:{color:gc},border:{color:gc}}
       }
     }
   });
 }
 
-/* ═══════════════════════════════════════════
+/* ════════════════════════════════════════
+   HISTORY LIST (evolução tab)
+════════════════════════════════════════ */
+function renderHist(){
+  const fs = document.getElementById('hf-sess').value;
+  let d = getData();
+  if(fs) d = d.filter(x=>x.session===fs);
+  d = [...d].reverse();
+  const el = document.getElementById('hist-list');
+  if(!d.length){
+    el.innerHTML='<div class="empty"><span class="ei">📋</span><p>Nenhum registro ainda.<br>Clique em um exercício para registrar.</p></div>';
+    return;
+  }
+  const sc = {'Push A':'var(--push)','Push B':'var(--push)','Pull A':'var(--pull)','Pull B':'var(--pull)','Legs A':'var(--legs)','Legs B':'var(--legs)'};
+  el.innerHTML = d.map(e=>`
+    <div class="hcard">
+      <div class="hc-left">
+        <div class="hc-ex">${e.exercise}${e.pr?'<span class="pr-tag">PR 🏆</span>':''}</div>
+        <div class="hc-meta">
+          <span style="color:${sc[e.session]||'var(--accent)'}">${e.session}</span>
+          <span>${e.date}</span>
+          <span>${e.reps} reps</span>
+        </div>
+      </div>
+      <div class="hc-load">${e.load}<span>kg</span></div>
+      <button class="btn-del" onclick="delFromHist(${e.id})">✕</button>
+    </div>`).join('');
+}
+
+function delFromHist(id){
+  if(!confirm('Remover?')) return;
+  saveData(getData().filter(d=>d.id!==id));
+  renderHist(); updateStats(); updateChartSel();
+}
+
+/* ════════════════════════════════════════
    EXPORT / IMPORT
-═══════════════════════════════════════════ */
-function exportData() {
-  const data = getData();
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+════════════════════════════════════════ */
+function exportData(){
+  const b = new Blob([JSON.stringify(getData(),null,2)],{type:'application/json'});
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  a.href = URL.createObjectURL(b);
   a.download = `treino_log_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 }
-function importTrigger() { document.getElementById('import-file').click(); }
-function importData(e) {
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      const imported = JSON.parse(ev.target.result);
-      if(!Array.isArray(imported)) throw new Error();
-      const existing = getData();
-      const merged = [...existing, ...imported.filter(i => !existing.find(e => e.id === i.id))];
-      saveData(merged);
-      renderEntries(); renderChart(); updateStats();
-      alert(`✅ ${imported.length} registros importados!`);
-    } catch { alert('❌ Arquivo inválido.'); }
+function importData(e){
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try{
+      const imp = JSON.parse(ev.target.result);
+      if(!Array.isArray(imp)) throw 0;
+      const ex = getData();
+      saveData([...ex,...imp.filter(i=>!ex.find(x=>x.id===i.id))]);
+      renderHist(); updateStats(); updateChartSel();
+      alert(`✅ ${imp.length} registros importados!`);
+    }catch{ alert('❌ Arquivo inválido.'); }
   };
-  reader.readAsText(file);
-  e.target.value = '';
+  r.readAsText(f);
+  e.target.value='';
 }
 
-/* ═══════════════════════════════════════════
-   INIT
-═══════════════════════════════════════════ */
-(function init() {
-  // set today's date
-  document.getElementById('f-date').valueAsDate = new Date();
-  populateExercises();
-  updateStats();
+/* ════════════════════════════════════════
+   TABS
+════════════════════════════════════════ */
+const TABS = ['visao','push1','pull1','legs1','push2','pull2','legs2','prog','evolucao'];
+function showTab(id){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('on');
+  const idx = TABS.indexOf(id);
+  if(idx>=0) document.querySelectorAll('.nb')[idx].classList.add('active');
+  document.getElementById('hero').classList.toggle('on', id==='visao');
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(id==='evolucao'){ renderChart(); renderHist(); updateStats(); }
+}
+document.querySelectorAll('.nb').forEach((btn,i)=>{
+  btn.onclick = ()=> showTab(TABS[i]);
+});
+
+/* ════════════════════════════════════════
+   THEME
+════════════════════════════════════════ */
+function toggleTheme(){
+  const next = document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  document.getElementById('tlbl').textContent = next==='dark'?'Dark':'Light';
+  localStorage.setItem('theme',next);
+  if(chart) renderChart();
+}
+(()=>{
+  const t = localStorage.getItem('theme')||'dark';
+  document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('tlbl').textContent = t==='dark'?'Dark':'Light';
 })();
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+renderTables();
+updateStats();
 </script>
 </body>
 </html>
