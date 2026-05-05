@@ -651,10 +651,6 @@ function buildPanel(uid, exKey, session){
         <input class="lf-input" type="number" id="f-load-${uid}" placeholder="Ex: 80" min="0" step="0.5">
       </div>
       <div class="lf-group">
-        <label>Reps</label>
-        <input class="lf-input" type="number" id="f-reps-${uid}" placeholder="Ex: 10" min="1">
-      </div>
-      <div class="lf-group">
         <label>Data</label>
         <input class="lf-input" type="date" id="f-date-${uid}" value="${today}">
       </div>
@@ -676,7 +672,7 @@ function renderPanelHist(data){
       <div class="lentry-main">
         <div class="lentry-load">${e.load}<span>kg</span></div>
         <div class="lentry-meta">
-          <strong>${e.reps} reps${e.pr?'<span class="pr-tag">PR 🏆</span>':''}</strong>
+          <strong>${e.pr?'<span class="pr-tag">PR 🏆</span>':''}</strong>
           <span>${e.date}</span>
         </div>
       </div>
@@ -689,22 +685,20 @@ function renderPanelHist(data){
 ════════════════════════════════════════ */
 function saveEntry(uid, exKey, session){
   const load = parseFloat(document.getElementById('f-load-'+uid).value);
-  const reps = parseInt(document.getElementById('f-reps-'+uid).value);
   const date = document.getElementById('f-date-'+uid).value;
-  if(isNaN(load)||load<=0||isNaN(reps)||!date){
-    alert('Preencha carga, reps e data!'); return;
+  if(isNaN(load)||load<=0||!date){
+    alert('Preencha carga e data!'); return;
   }
   const all = getData();
   const prev = all.filter(d=>d.exercise===exKey);
   const prevBest = prev.length ? Math.max(...prev.map(d=>d.load)) : 0;
   const isPR = load > prevBest && prevBest > 0;
-  const entry = {id:Date.now(), session, exercise:exKey, load, reps, date, pr:isPR};
+  const entry = {id:Date.now(), session, exercise:exKey, load, date, pr:isPR};
   all.push(entry);
   saveData(all);
 
   // clear inputs
   document.getElementById('f-load-'+uid).value = '';
-  document.getElementById('f-reps-'+uid).value = '';
 
   // update hint
   const newBest = Math.max(...all.filter(d=>d.exercise===exKey).map(d=>d.load));
@@ -842,7 +836,6 @@ function renderHist(){
         <div class="hc-meta">
           <span style="color:${sc[e.session]||'var(--accent)'}">${e.session}</span>
           <span>${e.date}</span>
-          <span>${e.reps} reps</span>
         </div>
       </div>
       <div class="hc-load">${e.load}<span>kg</span></div>
