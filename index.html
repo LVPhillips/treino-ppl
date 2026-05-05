@@ -1,978 +1,682 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrainMax — PPL Hipertrofia</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--acc:#e8ff47;--push:#ff6b35;--pull:#47b4ff;--legs:#b47fff;--ok:#4dffb4;--danger:#ff4d6d;--warn:#ffcb35;--r:12px;--t:.2s ease;}
+[data-theme="dark"]{--bg:#0c0c0f;--surf:#141418;--surf2:#1c1c24;--bord:#2a2a38;--bord2:#383850;--txt:#f2f2f8;--txt2:#9090aa;--muted:#52526a;--inp:#1a1a24;--shadow:0 2px 0 rgba(0,0,0,.8),0 8px 32px rgba(0,0,0,.5);--shadow-h:0 2px 0 rgba(0,0,0,.9),0 16px 48px rgba(0,0,0,.7);}
+[data-theme="light"]{--bg:#f0f0ec;--surf:#ffffff;--surf2:#f5f5f0;--bord:#ddddd4;--bord2:#c8c8c0;--txt:#18181f;--txt2:#55555f;--muted:#909099;--inp:#f8f8f4;--shadow:0 1px 0 rgba(0,0,0,.06),0 4px 20px rgba(0,0,0,.08);--shadow-h:0 1px 0 rgba(0,0,0,.08),0 10px 32px rgba(0,0,0,.14);}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+button,input,select{font-family:'DM Sans',sans-serif}
+button{cursor:pointer}
 
-// ─────────────────────────────────────────────
-// DATA
-// ─────────────────────────────────────────────
-const SESSIONS = [
-  { id: "push1", label: "Push A", color: "#ff6b35", group: "push", focus: "Peito · Ombro · Tríceps" },
-  { id: "pull1", label: "Pull A", color: "#47b4ff", group: "pull", focus: "Costas · Bíceps · Trapézio" },
-  { id: "legs1", label: "Legs A", color: "#b47fff", group: "legs", focus: "Foco: Quadríceps" },
-  { id: "push2", label: "Push B", color: "#ff6b35", group: "push", focus: "Peito · Ombro · Tríceps" },
-  { id: "pull2", label: "Pull B", color: "#47b4ff", group: "pull", focus: "Costas · Bíceps · Trapézio" },
-  { id: "legs2", label: "Legs B", color: "#b47fff", group: "legs", focus: "Foco: Posterior · Glúteo" },
-  { id: "prog",  label: "Progressão", color: "#e8ff47", group: "prog", focus: "Guia Semanal" },
-  { id: "stats", label: "📈 Evolução",  color: "#4dffb4", group: "stats", focus: "Cargas & PRs" },
-];
+.pf{animation:pf .28s ease both}
+@keyframes pf{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-const WEEK = [
-  { day: "Seg", type: "Push A", color: "#ff6b35" },
-  { day: "Ter", type: "Pull A", color: "#47b4ff" },
-  { day: "Qua", type: "Legs A", color: "#b47fff" },
-  { day: "Qui", type: "Push B", color: "#ff6b35" },
-  { day: "Sex", type: "Pull B", color: "#47b4ff" },
-  { day: "Sáb", type: "Legs B", color: "#b47fff" },
-  { day: "Dom", type: "Rest",   color: "#333340" },
-];
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:200;background:var(--bg);border-bottom:1px solid var(--bord);display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:56px;backdrop-filter:blur(16px)}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:4px}
+.logo em{color:var(--acc);font-style:normal}
+.tr{display:flex;align-items:center;gap:10px}
+.tlbl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase}
+.tog{width:48px;height:28px;background:var(--surf2);border:1px solid var(--bord);border-radius:14px;cursor:pointer;position:relative;transition:all var(--t);flex-shrink:0}
+.tog::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:var(--acc);top:3px;left:3px;transition:transform .25s cubic-bezier(.4,0,.2,1)}
+[data-theme="light"] .tog::after{transform:translateX(20px)}
 
-const BADGES = {
-  Prog:       { bg: "rgba(255,255,255,.08)",  color: "#aaa",    border: "rgba(255,255,255,.15)" },
-  "FST-7":    { bg: "rgba(232,255,71,.10)",   color: "#e8ff47", border: "rgba(232,255,71,.3)"  },
-  "FST prep": { bg: "rgba(232,255,71,.07)",   color: "#c8e030", border: "rgba(232,255,71,.2)"  },
-  Falha:      { bg: "rgba(180,127,255,.10)",  color: "#b47fff", border: "rgba(180,127,255,.3)" },
-  "Rest Pause":{ bg:"rgba(255,107,53,.10)",   color: "#ff6b35", border: "rgba(255,107,53,.3)"  },
-  "Drop Set": { bg: "rgba(71,180,255,.10)",   color: "#47b4ff", border: "rgba(71,180,255,.3)"  },
-  RP:         { bg: "rgba(255,107,53,.10)",   color: "#ff6b35", border: "rgba(255,107,53,.3)"  },
-  "⚠ Ombro": { bg: "rgba(255,200,50,.08)",   color: "#ffcb35", border: "rgba(255,200,50,.3)"  },
+/* NAV */
+.nav{background:var(--surf);border-bottom:1px solid var(--bord);display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.nav::-webkit-scrollbar{display:none}
+.nb{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:0 18px;height:50px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;white-space:nowrap;transition:color var(--t),border-color var(--t)}
+.nb:hover{color:var(--txt2)}
+.nb.active{border-bottom-color:currentColor}
+.nb.tp{color:var(--push)}.nb.tl{color:var(--pull)}.nb.tg{color:var(--legs)}.nb.ta{color:var(--acc)}.nb.ts{color:var(--ok)}
+
+/* LAYOUT */
+.wrap{max-width:900px;margin:0 auto;padding:0 16px}
+.sec{display:none;padding:0 0 90px}.sec.on{display:block}
+
+/* HERO */
+.hero{background:var(--surf);border-bottom:1px solid var(--bord);padding:28px 20px 22px}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(52px,12vw,96px);line-height:.88;letter-spacing:2px}
+.hero h1 em{color:var(--acc);font-style:normal;display:block}
+.hero-sub{font-size:15px;color:var(--txt2);margin-top:10px;max-width:500px;line-height:1.7}
+.htags{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.htag{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:5px 14px;border-radius:20px;border:1px solid}
+
+/* SECTION CONTENT */
+.scontent{padding-top:28px}
+
+/* WEEK GRID */
+.wgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:32px}
+@media(max-width:560px){.wgrid{grid-template-columns:repeat(4,1fr)}}
+.wday{border-radius:var(--r);padding:14px 6px;text-align:center;background:var(--surf);border:1px solid var(--bord);position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.wday::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.wday .wdn{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+.wday .wdt{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1px}
+
+/* SH */
+.sh{display:flex;align-items:baseline;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+.sh h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(32px,6vw,50px);letter-spacing:2px;line-height:1}
+.badge{display:inline-block;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:4px 12px;border-radius:20px;border:1px solid}
+.sdesc{color:var(--txt2);font-size:15px;margin-bottom:24px;line-height:1.7}
+
+/* ALERT */
+.alert-box{display:flex;gap:12px;padding:14px 16px;background:rgba(255,200,50,.07);border:1px solid rgba(255,200,50,.25);border-left:3px solid var(--warn);border-radius:var(--r);margin-bottom:22px;font-size:14px;line-height:1.6;color:var(--warn)}
+
+/* BLOCK LABEL */
+.blk{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin:28px 0 14px;display:flex;align-items:center;gap:12px}
+.blk::after{content:'';flex:1;height:1px;background:var(--bord)}
+
+/* EXERCISE CARDS */
+.ex-list{display:flex;flex-direction:column;gap:10px}
+.ex-card{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;cursor:pointer;position:relative;transition:box-shadow .22s,border-color .22s,transform .18s;animation:cIn .3s ease both}
+@keyframes cIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.ex-card:hover{box-shadow:var(--shadow-h);border-color:var(--bord2);transform:translateY(-2px)}
+.ex-card.open{box-shadow:0 0 0 2px var(--acc),var(--shadow-h);border-color:var(--acc);transform:translateY(-1px)}
+.ex-card::before{content:'';position:absolute;left:0;top:0;width:4px;height:100%;background:var(--bord2);transition:background .2s;border-radius:var(--r) 0 0 var(--r)}
+.ex-card.open::before{background:var(--acc)}
+.ex-header{display:flex;align-items:flex-start;gap:14px;padding:16px 16px 12px 20px;user-select:none}
+.ex-num{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);min-width:28px;padding-top:3px;flex-shrink:0}
+.ex-info{flex:1;min-width:0}
+.ex-name{font-weight:600;font-size:16px;color:var(--txt);line-height:1.3}
+.ex-sub{font-size:13px;color:var(--txt2);margin-top:3px}
+.ex-chips{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.chip{font-family:'DM Mono',monospace;font-size:12px;color:var(--txt2);background:var(--surf2);border:1px solid var(--bord);border-radius:8px;padding:4px 10px;white-space:nowrap}
+.chip.cr{font-size:11px;color:var(--muted)}
+.ex-chev{font-size:14px;color:var(--muted);transition:transform .22s,color .2s;flex-shrink:0;padding-top:3px;margin-left:8px}
+.ex-card.open .ex-chev{transform:rotate(180deg);color:var(--acc)}
+.ex-meta-mob{display:none;gap:8px;padding:0 20px 12px}
+@media(max-width:600px){
+  .ex-chips{display:none}
+  .ex-meta-mob{display:flex}
+  .cmob{flex:1;background:var(--surf2);border:1px solid var(--bord);border-radius:10px;padding:8px 12px}
+  .cmob-l{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
+  .cmob-v{font-family:'DM Mono',monospace;font-size:13px;color:var(--txt);font-weight:500}
+}
+.ex-footer{display:flex;align-items:center;padding:0 20px 14px;gap:6px;flex-wrap:wrap;user-select:none}
+.tb{display:inline-block;padding:3px 9px;border-radius:6px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.8px;text-transform:uppercase;border:1px solid;margin:2px 2px 2px 0}
+.tf{border-color:rgba(232,255,71,.3);color:var(--acc);background:rgba(232,255,71,.08)}
+.tr2{border-color:rgba(255,107,53,.3);color:var(--push);background:rgba(255,107,53,.08)}
+.td2{border-color:rgba(71,180,255,.3);color:var(--pull);background:rgba(71,180,255,.08)}
+.tfa{border-color:rgba(180,127,255,.3);color:var(--legs);background:rgba(180,127,255,.08)}
+.tp2{border-color:var(--bord);color:var(--muted)}
+.tw2{border-color:rgba(255,200,50,.3);color:var(--warn);background:rgba(255,200,50,.07)}
+
+/* LOG PANEL */
+.log-panel{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .25s ease;opacity:0;border-top:0 solid transparent}
+.log-panel.open{max-height:600px;opacity:1;border-top:1px solid var(--bord)}
+.log-inner{padding:16px 20px 20px;background:var(--surf2)}
+.lf-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;align-items:flex-end}
+.lf-g{display:flex;flex-direction:column;gap:5px}
+.lf-lbl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.lf-inp{background:var(--inp);border:1px solid var(--bord);border-radius:10px;color:var(--txt);font-size:16px;padding:10px 14px;width:110px;outline:none;transition:border-color var(--t);-webkit-appearance:none}
+.lf-inp:focus{border-color:var(--acc)}
+input[type=date].lf-inp{width:158px}
+@media(max-width:600px){.lf-g{flex:1;min-width:120px}.lf-g.btn-g{flex:none;width:100%}.lf-inp{width:100%}input[type=date].lf-inp{width:100%}}
+.btn-save{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:11px 22px;border-radius:10px;border:none;background:var(--acc);color:#0c0c0f;font-weight:700;transition:opacity .18s,transform .15s;white-space:nowrap;width:100%}
+.btn-save:hover{opacity:.85;transform:scale(1.02)}
+.btn-save:active{transform:scale(.97)}
+.pr-hint{font-size:13px;margin-top:6px;min-height:18px;font-weight:600}
+.hist-wrap{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.hist-lbl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.hentry{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:var(--surf);border:1px solid var(--bord);border-radius:10px;animation:eIn .18s ease both}
+@keyframes eIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.hload{font-family:'Bebas Neue',sans-serif;font-size:34px;color:var(--acc);line-height:1}
+.hload span{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)}
+.hdate{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)}
+.pr-chip{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:3px 8px;border-radius:6px;background:rgba(232,255,71,.15);color:var(--acc);border:1px solid rgba(232,255,71,.3);margin-left:6px}
+.btn-del{font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,77,109,.25);background:transparent;color:var(--danger);transition:background var(--t);min-width:34px}
+.btn-del:hover{background:rgba(255,77,109,.12)}
+.no-entries{font-size:14px;color:var(--muted);font-style:italic;padding:4px 0}
+
+/* LEGEND */
+.legend{display:flex;flex-wrap:wrap;gap:10px;padding:14px 16px;background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);margin-bottom:24px;box-shadow:var(--shadow)}
+.li{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txt2)}
+
+/* RULE CARDS */
+.rgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.rc{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
+.ri{font-size:22px;display:block;margin-bottom:10px}
+.rt{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--acc);margin-bottom:6px}
+.rb{font-size:14px;color:var(--txt2);line-height:1.7}
+.rb strong{color:var(--txt)}
+
+/* PROG CARDS */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:32px}
+.pc{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:20px;position:relative;overflow:hidden;box-shadow:var(--shadow);animation:cIn .3s ease both}
+.pc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0}
+.pw{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;line-height:1;margin-bottom:3px}
+.pn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.pl{list-style:none;display:flex;flex-direction:column;gap:8px}
+.pl li{display:flex;gap:8px;font-size:14px;color:var(--txt2);line-height:1.5}
+.pl li::before{content:'→';color:var(--muted);flex-shrink:0;font-family:'DM Mono',monospace;font-size:11px;margin-top:2px}
+hr.dv{border:none;border-top:1px solid var(--bord);margin:32px 0}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:24px}
+.sc{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:18px 14px;text-align:center;box-shadow:var(--shadow)}
+.sv{font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:1;color:var(--acc)}
+.sl{font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.chart-card{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:20px;margin-bottom:24px;box-shadow:var(--shadow)}
+.ch-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.ch-head h3{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--txt)}
+.sel{background:var(--inp);border:1px solid var(--bord);border-radius:10px;color:var(--txt);font-size:15px;padding:9px 12px;outline:none;cursor:pointer;-webkit-appearance:none;transition:border-color var(--t);width:100%;max-width:240px}
+.sel:focus{border-color:var(--acc)}
+canvas{max-height:240px}
+.hist-full{display:flex;flex-direction:column;gap:10px}
+.hcard{background:var(--surf);border:1px solid var(--bord);border-radius:var(--r);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:var(--shadow);animation:eIn .2s ease both}
+.hcard-left{flex:1;min-width:0}
+.hcard-ex{font-weight:600;font-size:15px;color:var(--txt);margin-bottom:4px}
+.hcard-meta{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px}
+.hcard-load{font-family:'Bebas Neue',sans-serif;font-size:34px;color:var(--acc);line-height:1;flex-shrink:0}
+.hcard-load span{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)}
+.empty{text-align:center;padding:44px 16px;color:var(--muted)}
+.empty-i{font-size:44px;display:block;margin-bottom:12px}
+.export-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.btn-exp{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:10px 16px;border-radius:10px;border:1px solid var(--bord);background:transparent;color:var(--muted);transition:all var(--t);min-height:44px}
+.btn-exp:hover{color:var(--txt);border-color:var(--bord2)}
+footer{border-top:1px solid var(--bord);padding:20px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+footer p{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">TRAIN<em>MAX</em></div>
+  <div class="tr">
+    <span class="tlbl" id="tlbl">Dark</span>
+    <button class="tog" onclick="toggleTheme()" aria-label="Tema"></button>
+  </div>
+</div>
+
+<nav class="nav">
+  <button class="nb ta active" data-tab="visao">Geral</button>
+  <button class="nb tp" data-tab="push1">Push A</button>
+  <button class="nb tl" data-tab="pull1">Pull A</button>
+  <button class="nb tg" data-tab="legs1">Legs A</button>
+  <button class="nb tp" data-tab="push2">Push B</button>
+  <button class="nb tl" data-tab="pull2">Pull B</button>
+  <button class="nb tg" data-tab="legs2">Legs B</button>
+  <button class="nb ta" data-tab="prog">Progressão</button>
+  <button class="nb ts" data-tab="stats">📈 Evolução</button>
+</nav>
+
+<!-- VISÃO GERAL -->
+<section id="visao" class="sec on">
+  <div class="hero">
+    <div class="wrap">
+      <h1>PPL<em>HIPERTROFIA</em></h1>
+      <p class="hero-sub">FST-7 (Rambod) · Falha Total (Schatz) · Progressão de Carga (Pacholok). 6 dias/semana · Ombro adaptado.</p>
+      <div class="htags">
+        <span class="htag" style="border-color:var(--acc);color:var(--acc)">FST-7</span>
+        <span class="htag" style="border-color:var(--push);color:var(--push)">Mais Cinco</span>
+        <span class="htag" style="border-color:var(--pull);color:var(--pull)">Prog. Carga</span>
+        <span class="htag" style="border-color:var(--bord);color:var(--muted)">⚠ Ombro OK</span>
+      </div>
+    </div>
+  </div>
+  <div class="wrap scontent pf">
+    <div class="wgrid" id="wgrid"></div>
+    <div class="legend">
+      <div class="li"><span class="tb tp2">Prog</span>Progressão série a série</div>
+      <div class="li"><span class="tb tf">FST-7</span>7 séries pump final</div>
+      <div class="li"><span class="tb tr2">Rest Pause</span>Falha + 3 resp + falha</div>
+      <div class="li"><span class="tb td2">Drop Set</span>−30% na falha</div>
+      <div class="li"><span class="tb tfa">Falha</span>Até a falha concêntrica</div>
+      <div class="li"><span class="tb tw2">⚠</span>Exercício adaptado</div>
+    </div>
+    <div class="rgrid">
+      <div class="rc"><span class="ri">🔺</span><div class="rt">Progressão de Carga</div><div class="rb">Comece leve e <strong>aumente o peso a cada série</strong>. Se completar todas as reps, sobe 2,5–5kg na próxima semana.</div></div>
+      <div class="rc"><span class="ri">💀</span><div class="rt">Falha Muscular</div><div class="rb"><strong>Nenhuma rep reservada</strong> nos exercícios marcados. "Mais cinco, até o limite todo dia!" — Johann Schatz.</div></div>
+      <div class="rc"><span class="ri">🩸</span><div class="rt">FST-7</div><div class="rb">Último exercício de cada grupo: <strong>7 séries, 30–45 seg descanso</strong>. Máximo pump e resposta hormonal.</div></div>
+      <div class="rc"><span class="ri">📲</span><div class="rt">Registro Inline</div><div class="rb"><strong>Clique em qualquer exercício</strong> para abrir o registro de carga direto na linha.</div></div>
+      <div class="rc"><span class="ri">⚠️</span><div class="rt">Ombro Adaptado</div><div class="rb"><strong>Sem desenvolvimento aberto</strong>, <strong>sem paralelas</strong>. Substituídos por Hammer Press neutro e Smith convergente.</div></div>
+      <div class="rc"><span class="ri">⏱</span><div class="rt">Intervalos</div><div class="rb"><strong>Compostos:</strong> 2–3 min. <strong>Isolamentos:</strong> 60–90 seg. <strong>FST-7:</strong> 30–45 seg inegociável.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- TREINOS -->
+<section id="push1" class="sec"><div id="c-push1"></div></section>
+<section id="pull1" class="sec"><div id="c-pull1"></div></section>
+<section id="legs1" class="sec"><div id="c-legs1"></div></section>
+<section id="push2" class="sec"><div id="c-push2"></div></section>
+<section id="pull2" class="sec"><div id="c-pull2"></div></section>
+<section id="legs2" class="sec"><div id="c-legs2"></div></section>
+
+<!-- PROGRESSÃO -->
+<section id="prog" class="sec"><div id="c-prog"></div></section>
+
+<!-- EVOLUÇÃO -->
+<section id="stats" class="sec">
+<div class="wrap scontent pf">
+  <div class="sh"><h2>EVOLUÇÃO</h2><span class="badge" style="border-color:rgba(77,255,180,.35);color:var(--ok);background:rgba(77,255,180,.08)">📈 Cargas</span></div>
+  <p class="sdesc">Gráfico de progresso por exercício. Registre as cargas clicando nos exercícios em cada aba.</p>
+  <div class="stats-row">
+    <div class="sc"><div class="sv" id="st-tot">0</div><div class="sl">Registros</div></div>
+    <div class="sc"><div class="sv" id="st-ex">0</div><div class="sl">Exercícios</div></div>
+    <div class="sc"><div class="sv" id="st-d">0</div><div class="sl">Dias</div></div>
+    <div class="sc"><div class="sv" id="st-pr">0</div><div class="sl">PRs</div></div>
+  </div>
+  <div class="chart-card">
+    <div class="ch-head">
+      <h3>Evolução de Carga</h3>
+      <select class="sel" id="chart-sel" onchange="renderChart()"></select>
+    </div>
+    <div id="chart-empty" class="empty" style="display:none"><span class="empty-i">📊</span><p>Nenhum dado ainda.<br>Clique em um exercício para registrar.</p></div>
+    <canvas id="myChart"></canvas>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+    <div class="sh" style="margin-bottom:0"><h2 style="font-size:24px">Histórico</h2></div>
+    <div class="export-row" style="margin-bottom:0">
+      <button class="btn-exp" onclick="exportData()">⬇ Exportar</button>
+      <button class="btn-exp" onclick="document.getElementById('imp').click()">⬆ Importar</button>
+      <input type="file" id="imp" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+  </div>
+  <select class="sel" id="hf" onchange="renderHist()" style="margin-bottom:16px;max-width:180px">
+    <option value="">Todos</option>
+    <option>Push A</option><option>Pull A</option><option>Legs A</option>
+    <option>Push B</option><option>Pull B</option><option>Legs B</option>
+  </select>
+  <div class="hist-full" id="hist-full"></div>
+</div>
+</section>
+
+<footer>
+  <p>TrainMax · PPL × 2 · Hipertrofia Máxima</p>
+  <p>FST-7 · Rambod | Mais Cinco · Schatz | Prog. Carga · Pacholok</p>
+</footer>
+
+<script>
+const WEEK=[{day:"Seg",type:"Push A",c:"#ff6b35"},{day:"Ter",type:"Pull A",c:"#47b4ff"},{day:"Qua",type:"Legs A",c:"#b47fff"},{day:"Qui",type:"Push B",c:"#ff6b35"},{day:"Sex",type:"Pull B",c:"#47b4ff"},{day:"Sáb",type:"Legs B",c:"#b47fff"},{day:"Dom",type:"Rest",c:"#333340"}];
+
+const SESSIONS={
+  push1:{label:"Push A",color:"#ff6b35",focus:"Peito · Ombro · Tríceps",alert:"Desenvolvimento neutro (cotovelos à frente). Não abra os cotovelos acima dos ombros.",blocks:[
+    {label:"Ombro",items:[
+      {n:"01",name:"Desenvolvimento Hammer (Neutro)",sub:"Pegada neutra, cotovelos à frente",ser:"2×15 / 1×12 / 1×10 / 1×8",rest:"2–3 min",tags:["Prog","⚠ Ombro"]},
+      {n:"02",name:"Elevação Lateral Máquina",sub:"Pico de contração no topo",ser:"4×12–15",rest:"60–90 seg",tags:["Falha"]},
+      {n:"03",name:"Elevação Lateral Cabo Unilateral",sub:"Maior tensão no início",ser:"3×15",rest:"45 seg",tags:["FST-7"]},
+    ]},
+    {label:"Peito",items:[
+      {n:"04",name:"Supino Inclinado Halteres",sub:"45°, explosivo na subida",ser:"1×12 / 1×10 / 1×8",rest:"2–3 min",tags:["Prog","Falha"]},
+      {n:"05",name:"Supino Reto Halteres",sub:"Amplitude máxima, não trave no topo",ser:"1×12 / 1×10 / 1×8",rest:"2–3 min",tags:["Prog"]},
+      {n:"06",name:"Crucifixo Inclinado Cabo",sub:"Cabo alto, arco constante",ser:"3×12–15",rest:"60 seg",tags:["Rest Pause"]},
+      {n:"07",name:"Peck Deck — FST-7",sub:"7 séries, 30–45 seg descanso",ser:"7×12–15",rest:"30–45 seg",tags:["FST-7","Falha"]},
+    ]},
+    {label:"Tríceps",items:[
+      {n:"08",name:"Tríceps Francês Halteres",sub:"Cotovelos fixos, ROM completo",ser:"3×10–12",rest:"90 seg",tags:["Prog"]},
+      {n:"09",name:"Tríceps Corda — FST-7",sub:"Abre a corda na extensão total",ser:"7×15",rest:"30–45 seg",tags:["FST-7"]},
+    ]},
+  ]},
+  pull1:{label:"Pull A",color:"#47b4ff",focus:"Costas · Bíceps · Trapézio",blocks:[
+    {label:"Costas — Espessura",items:[
+      {n:"01",name:"Puxada Hammer Supinada",sub:"Exercício âncora",ser:"2×15 / 1×12 / 1×10 / 1×8",rest:"2–3 min",tags:["Prog"]},
+      {n:"02",name:"Remada Curvada Supinada",sub:"Tronco 45°, puxa para o umbigo",ser:"1×12 / 1×10 / 1×8",rest:"2–3 min",tags:["Prog","Falha"]},
+      {n:"03",name:"Remada Baixa Triângulo",sub:"Retração escapular completa",ser:"3×10–12",rest:"90 seg",tags:["Prog"]},
+      {n:"04",name:"Barra Fixa Pronada",sub:"Amplitude máxima, sem kipping",ser:"2×Falha",rest:"2 min",tags:["Falha"]},
+      {n:"05",name:"Pullover Máquina/Cabo",sub:"Tensão constante no arco",ser:"3×12–15",rest:"60 seg",tags:["Rest Pause"]},
+    ]},
+    {label:"Ombro Posterior · Trapézio",items:[
+      {n:"06",name:"Crucifixo Invertido Máquina",sub:"Foco no deltóide posterior",ser:"4×15",rest:"60 seg",tags:["Falha"]},
+      {n:"07",name:"Encolhimento Smith",sub:"Pausa 1 seg no topo",ser:"3×12",rest:"60 seg",tags:["Prog"]},
+    ]},
+    {label:"Bíceps",items:[
+      {n:"08",name:"Rosca Scott Barra W",sub:"Sem impulso, topo controlado",ser:"3×10–12",rest:"90 seg",tags:["Prog"]},
+      {n:"09",name:"Rosca Alternada — FST-7",sub:"Supinação completa no topo",ser:"7×12",rest:"30–45 seg",tags:["FST-7"]},
+    ]},
+  ]},
+  legs1:{label:"Legs A",color:"#b47fff",focus:"Foco: Quadríceps",blocks:[
+    {label:"Quadríceps · Glúteo",items:[
+      {n:"01",name:"Leg Press 45°",sub:"Posição média, 90° de joelho",ser:"2×15 / 1×12 / 1×10 / 1×8",rest:"2–3 min",tags:["Prog"]},
+      {n:"02",name:"V-Squat / Pêndulo",sub:"Profundidade total",ser:"1×12 / 1×10 / 1×8",rest:"2–3 min",tags:["Prog","Falha"]},
+      {n:"03",name:"Cadeira Extensora",sub:"Pausa 1 seg no topo, desce em 3 seg",ser:"4×12–15",rest:"60 seg",tags:["Drop Set","Falha"]},
+      {n:"04",name:"Hip Thrust",sub:"Glúteo máximo, não lombar",ser:"4×12",rest:"90 seg",tags:["Prog"]},
+      {n:"05",name:"Cadeira Abdutora",sub:"",ser:"3×15–20",rest:"60 seg",tags:["Falha"]},
+    ]},
+    {label:"Posterior · Panturrilha",items:[
+      {n:"06",name:"Stiff Barra",sub:"Quadril para trás, costas neutras",ser:"3×10–12",rest:"2 min",tags:["Prog"]},
+      {n:"07",name:"Flexora Unilateral em Pé",sub:"Rest Pause até a falha",ser:"3×Falha (RP)",rest:"60 seg",tags:["Rest Pause"]},
+      {n:"08",name:"Panturrilha em Pé — FST-7",sub:"Amplitude total: calcanhar fundo → ponta alta",ser:"7×15–20",rest:"30–45 seg",tags:["FST-7"]},
+    ]},
+  ]},
+  push2:{label:"Push B",color:"#ff6b35",focus:"Peito · Ombro · Tríceps",alert:"Smith frontal neutro — cotovelos à frente do plano do ombro em todo o movimento.",blocks:[
+    {label:"Peito",items:[
+      {n:"01",name:"Supino Inclinado Máquina Convergente",sub:"2×15 sem carga para aquecer",ser:"2×15 / 1×12 / 1×10 / 1×8",rest:"2–3 min",tags:["Prog"]},
+      {n:"02",name:"Crossover Cabo Alto",sub:"Peito baixo, cruza na frente do quadril",ser:"4×12–15",rest:"60 seg",tags:["Falha","Rest Pause"]},
+      {n:"03",name:"Crucifixo Reto Halteres",sub:"Cotovelos levemente fletidos",ser:"3×12",rest:"90 seg",tags:["Prog"]},
+      {n:"04",name:"Crossover Cabo Baixo",sub:"Peito superior, mãos na altura do ombro",ser:"3×15",rest:"45 seg",tags:["FST-7"]},
+      {n:"05",name:"Peck Deck Inclinado — FST-7",sub:"Assento mais alto, ângulo inclinado",ser:"7×12–15",rest:"30–45 seg",tags:["FST-7"]},
+    ]},
+    {label:"Ombro · Tríceps",items:[
+      {n:"06",name:"Desenvolvimento Smith Neutro",sub:"Pegada fechada, cotovelos à frente",ser:"3×10–12",rest:"90 seg",tags:["Prog","⚠ Ombro"]},
+      {n:"07",name:"Elevação Lateral Halteres Unilateral",sub:"Sem trapézio",ser:"4×15",rest:"45 seg",tags:["Drop Set"]},
+      {n:"08",name:"Tríceps X Corda",sub:"Tronco levemente inclinado",ser:"4×12",rest:"60 seg",tags:["Prog"]},
+      {n:"09",name:"Tríceps Pulley Invertido — FST-7",sub:"Pegada supinada, 7 séries",ser:"7×15",rest:"30–45 seg",tags:["FST-7"]},
+    ]},
+  ]},
+  pull2:{label:"Pull B",color:"#47b4ff",focus:"Costas · Bíceps · Trapézio",blocks:[
+    {label:"Costas — Largura",items:[
+      {n:"01",name:"Puxada Aberta Pronada",sub:"2×15 para aquecer",ser:"2×15 / 1×12 / 1×10 / 1×8",rest:"2–3 min",tags:["Prog"]},
+      {n:"02",name:"Puxada Unilateral Supinada Cabo",sub:"Rotação natural no antebraço",ser:"3×12 cada",rest:"60 seg",tags:["Falha"]},
+      {n:"03",name:"Remada Baixa Triângulo",sub:"",ser:"1×12 / 1×10 / 1×8",rest:"2 min",tags:["Prog"]},
+      {n:"04",name:"Pullover Cabo Braço Reto",sub:"Cotovelos levemente fletidos",ser:"4×12–15",rest:"60 seg",tags:["Rest Pause"]},
+      {n:"05",name:"Crucifixo Invertido Halteres — FST-7",sub:"7 séries leves, deltóide posterior",ser:"7×15",rest:"30–45 seg",tags:["FST-7"]},
+    ]},
+    {label:"Trapézio · Bíceps",items:[
+      {n:"06",name:"Encolhimento Halteres",sub:"Pausa 2 seg no topo",ser:"4×12",rest:"60 seg",tags:["Prog"]},
+      {n:"07",name:"Rosca Martelo Pegada Neutra",sub:"",ser:"3×10–12",rest:"90 seg",tags:["Prog"]},
+      {n:"08",name:"Rosca Concentrada — FST-7",sub:"Supinação total no topo",ser:"7×12",rest:"30–45 seg",tags:["FST-7"]},
+    ]},
+  ]},
+  legs2:{label:"Legs B",color:"#b47fff",focus:"Foco: Posterior · Glúteo",blocks:[
+    {label:"Posterior · Glúteo",items:[
+      {n:"01",name:"Flexora Unilateral Deitada",sub:"Aquecimento obrigatório",ser:"2×15 cada",rest:"60 seg",tags:["Prog"]},
+      {n:"02",name:"Hack Squat",sub:"Pé médio-alto, profundidade total",ser:"1×12 / 1×10 / 1×8 (RP)",rest:"2–3 min",tags:["Prog","Rest Pause"]},
+      {n:"03",name:"Stiff Halteres",sub:"Maior amplitude que barra",ser:"4×10–12",rest:"2 min",tags:["Prog","Falha"]},
+      {n:"04",name:"Cadeira Flexora",sub:"Pé em dorsiflexão",ser:"3×Falha (RP)",rest:"60 seg",tags:["Rest Pause"]},
+      {n:"05",name:"Agachamento Smith Pé Avançado",sub:"Mais glúteo",ser:"3×12",rest:"90 seg",tags:["Prog"]},
+      {n:"06",name:"Cadeira Adutora",sub:"",ser:"3×15–20",rest:"60 seg",tags:["Falha"]},
+    ]},
+    {label:"Panturrilha",items:[
+      {n:"07",name:"Panturrilha Sentada — FST-7",sub:"Sóleo — joelho 90°, amplitude total",ser:"7×15–20",rest:"30–45 seg",tags:["FST-7"]},
+    ]},
+  ]},
 };
 
-const EXERCISES = {
-  push1: {
-    blocks: [
-      { label: "Ombro", items: [
-        { n:"01", name:"Desenvolvimento Hammer (Neutro)", sub:"Pegada neutra, cotovelos à frente", ser:"2×15 / 1×12 / 1×10 / 1×8", rest:"2–3 min", tags:["Prog","⚠ Ombro"] },
-        { n:"02", name:"Elevação Lateral Máquina", sub:"Pico de contração no topo", ser:"4×12–15", rest:"60–90 seg", tags:["Falha"] },
-        { n:"03", name:"Elevação Lateral Cabo Unilateral", sub:"Maior tensão no início", ser:"3×15", rest:"45 seg", tags:["FST prep"] },
-      ]},
-      { label: "Peito", items: [
-        { n:"04", name:"Supino Inclinado Halteres", sub:"45°, explosivo na subida", ser:"1×12 / 1×10 / 1×8", rest:"2–3 min", tags:["Prog","Falha"] },
-        { n:"05", name:"Supino Reto Halteres", sub:"Amplitude máxima, não trave no topo", ser:"1×12 / 1×10 / 1×8", rest:"2–3 min", tags:["Prog"] },
-        { n:"06", name:"Crucifixo Inclinado Cabo", sub:"Cabo alto, arco constante", ser:"3×12–15", rest:"60 seg", tags:["Rest Pause"] },
-        { n:"07", name:"Peck Deck — FST-7", sub:"7 séries, 30–45 seg descanso", ser:"7×12–15", rest:"30–45 seg", tags:["FST-7","Falha"] },
-      ]},
-      { label: "Tríceps", items: [
-        { n:"08", name:"Tríceps Francês Halteres", sub:"Cotovelos fixos, ROM completo", ser:"3×10–12", rest:"90 seg", tags:["Prog"] },
-        { n:"09", name:"Tríceps Corda — FST-7", sub:"Abre a corda na extensão total", ser:"7×15", rest:"30–45 seg", tags:["FST-7"] },
-      ]},
-    ],
-    alert: "Desenvolvimento neutro (cotovelos à frente). Não abra os cotovelos acima dos ombros.",
-  },
-  pull1: {
-    blocks: [
-      { label: "Costas — Espessura", items: [
-        { n:"01", name:"Puxada Hammer Supinada", sub:"Exercício âncora", ser:"2×15 / 1×12 / 1×10 / 1×8", rest:"2–3 min", tags:["Prog"] },
-        { n:"02", name:"Remada Curvada Supinada", sub:"Tronco 45°, puxa para o umbigo", ser:"1×12 / 1×10 / 1×8", rest:"2–3 min", tags:["Prog","Falha"] },
-        { n:"03", name:"Remada Baixa Triângulo", sub:"Retração escapular completa", ser:"3×10–12", rest:"90 seg", tags:["Prog"] },
-        { n:"04", name:"Barra Fixa Pronada", sub:"Amplitude máxima, sem kipping", ser:"2×Falha", rest:"2 min", tags:["Falha"] },
-        { n:"05", name:"Pullover Máquina/Cabo", sub:"Tensão constante no arco", ser:"3×12–15", rest:"60 seg", tags:["Rest Pause"] },
-      ]},
-      { label: "Ombro Posterior · Trapézio", items: [
-        { n:"06", name:"Crucifixo Invertido Máquina", sub:"Foco no deltóide posterior", ser:"4×15", rest:"60 seg", tags:["Falha"] },
-        { n:"07", name:"Encolhimento Smith", sub:"Pausa 1 seg no topo", ser:"3×12", rest:"60 seg", tags:["Prog"] },
-      ]},
-      { label: "Bíceps", items: [
-        { n:"08", name:"Rosca Scott Barra W", sub:"Sem impulso, topo controlado", ser:"3×10–12", rest:"90 seg", tags:["Prog"] },
-        { n:"09", name:"Rosca Alternada — FST-7", sub:"Supinação completa no topo", ser:"7×12", rest:"30–45 seg", tags:["FST-7"] },
-      ]},
-    ],
-  },
-  legs1: {
-    blocks: [
-      { label: "Quadríceps · Glúteo", items: [
-        { n:"01", name:"Leg Press 45°", sub:"Posição média, 90° de joelho", ser:"2×15 / 1×12 / 1×10 / 1×8", rest:"2–3 min", tags:["Prog"] },
-        { n:"02", name:"V-Squat / Pêndulo", sub:"Profundidade total", ser:"1×12 / 1×10 / 1×8", rest:"2–3 min", tags:["Prog","Falha"] },
-        { n:"03", name:"Cadeira Extensora", sub:"Pausa 1 seg no topo, desce em 3 seg", ser:"4×12–15", rest:"60 seg", tags:["Drop Set","Falha"] },
-        { n:"04", name:"Hip Thrust", sub:"Glúteo máximo, não lombar", ser:"4×12", rest:"90 seg", tags:["Prog"] },
-        { n:"05", name:"Cadeira Abdutora", sub:"", ser:"3×15–20", rest:"60 seg", tags:["Falha"] },
-      ]},
-      { label: "Posterior · Panturrilha", items: [
-        { n:"06", name:"Stiff Barra", sub:"Quadril para trás, costas neutras", ser:"3×10–12", rest:"2 min", tags:["Prog"] },
-        { n:"07", name:"Flexora Unilateral em Pé", sub:"Rest Pause até a falha", ser:"3×Falha (RP)", rest:"60 seg", tags:["Rest Pause"] },
-        { n:"08", name:"Panturrilha em Pé — FST-7", sub:"Amplitude total: calcanhar fundo → ponta alta", ser:"7×15–20", rest:"30–45 seg", tags:["FST-7"] },
-      ]},
-    ],
-  },
-  push2: {
-    blocks: [
-      { label: "Peito", items: [
-        { n:"01", name:"Supino Inclinado Máquina Convergente", sub:"2×15 sem carga para aquecer", ser:"2×15 / 1×12 / 1×10 / 1×8", rest:"2–3 min", tags:["Prog"] },
-        { n:"02", name:"Crossover Cabo Alto", sub:"Peito baixo, cruza na frente do quadril", ser:"4×12–15", rest:"60 seg", tags:["Falha","RP"] },
-        { n:"03", name:"Crucifixo Reto Halteres", sub:"Cotovelos levemente fletidos", ser:"3×12", rest:"90 seg", tags:["Prog"] },
-        { n:"04", name:"Crossover Cabo Baixo", sub:"Peito superior, mãos na altura do ombro", ser:"3×15", rest:"45 seg", tags:["FST prep"] },
-        { n:"05", name:"Peck Deck Inclinado — FST-7", sub:"Assento mais alto, ângulo inclinado", ser:"7×12–15", rest:"30–45 seg", tags:["FST-7"] },
-      ]},
-      { label: "Ombro · Tríceps", items: [
-        { n:"06", name:"Desenvolvimento Smith Neutro", sub:"Pegada fechada, cotovelos à frente", ser:"3×10–12", rest:"90 seg", tags:["Prog","⚠ Ombro"] },
-        { n:"07", name:"Elevação Lateral Halteres Unilateral", sub:"Sem trapézio", ser:"4×15", rest:"45 seg", tags:["Drop Set"] },
-        { n:"08", name:"Tríceps X Corda", sub:"Tronco levemente inclinado", ser:"4×12", rest:"60 seg", tags:["Prog"] },
-        { n:"09", name:"Tríceps Pulley Invertido — FST-7", sub:"Pegada supinada, 7 séries", ser:"7×15", rest:"30–45 seg", tags:["FST-7"] },
-      ]},
-    ],
-    alert: "Smith frontal neutro — cotovelos à frente do plano do ombro em todo o movimento.",
-  },
-  pull2: {
-    blocks: [
-      { label: "Costas — Largura", items: [
-        { n:"01", name:"Puxada Aberta Pronada", sub:"2×15 para aquecer", ser:"2×15 / 1×12 / 1×10 / 1×8", rest:"2–3 min", tags:["Prog"] },
-        { n:"02", name:"Puxada Unilateral Supinada Cabo", sub:"Rotação natural no antebraço", ser:"3×12 cada", rest:"60 seg", tags:["Falha"] },
-        { n:"03", name:"Remada Baixa Triângulo", sub:"", ser:"1×12 / 1×10 / 1×8", rest:"2 min", tags:["Prog"] },
-        { n:"04", name:"Pullover Cabo Braço Reto", sub:"Cotovelos levemente fletidos", ser:"4×12–15", rest:"60 seg", tags:["Rest Pause"] },
-        { n:"05", name:"Crucifixo Invertido Halteres — FST-7", sub:"7 séries leves, deltóide posterior", ser:"7×15", rest:"30–45 seg", tags:["FST-7"] },
-      ]},
-      { label: "Trapézio · Bíceps", items: [
-        { n:"06", name:"Encolhimento Halteres", sub:"Pausa 2 seg no topo", ser:"4×12", rest:"60 seg", tags:["Prog"] },
-        { n:"07", name:"Rosca Martelo Pegada Neutra", sub:"", ser:"3×10–12", rest:"90 seg", tags:["Prog"] },
-        { n:"08", name:"Rosca Concentrada — FST-7", sub:"Supinação total no topo", ser:"7×12", rest:"30–45 seg", tags:["FST-7"] },
-      ]},
-    ],
-  },
-  legs2: {
-    blocks: [
-      { label: "Posterior · Glúteo", items: [
-        { n:"01", name:"Flexora Unilateral Deitada", sub:"Aquecimento obrigatório", ser:"2×15 cada", rest:"60 seg", tags:["Prog"] },
-        { n:"02", name:"Hack Squat", sub:"Pé médio-alto, profundidade total", ser:"1×12 / 1×10 / 1×8 (RP)", rest:"2–3 min", tags:["Prog","RP"] },
-        { n:"03", name:"Stiff Halteres", sub:"Maior amplitude que barra", ser:"4×10–12", rest:"2 min", tags:["Prog","Falha"] },
-        { n:"04", name:"Cadeira Flexora", sub:"Pé em dorsiflexão", ser:"3×Falha (RP)", rest:"60 seg", tags:["Rest Pause"] },
-        { n:"05", name:"Agachamento Smith Pé Avançado", sub:"Mais glúteo", ser:"3×12", rest:"90 seg", tags:["Prog"] },
-        { n:"06", name:"Cadeira Adutora", sub:"", ser:"3×15–20", rest:"60 seg", tags:["Falha"] },
-      ]},
-      { label: "Panturrilha", items: [
-        { n:"07", name:"Panturrilha Sentada — FST-7", sub:"Sóleo — joelho 90°, amplitude total", ser:"7×15–20", rest:"30–45 seg", tags:["FST-7"] },
-      ]},
-    ],
-  },
-};
-
-const PROG_WEEKS = [
-  { cls:"#47b4ff", week:"Semana 1", name:"Adaptação · Volume Moderado", items:["Aprenda os exercícios com técnica perfeita","Progressão conservadora série a série","FST-7 leve — foco no pump","Rest Pause: 1 extensão após a falha","Anote todas as cargas"] },
-  { cls:"#e8ff47", week:"Semana 2", name:"Sobrecarga · Aumenta Tudo", items:["+2,5–5kg nos compostos completados","FST-7: +1–2 reps ou carga levemente maior","Rest Pause: adicione 2ª extensão","Drop Sets: −30% exato na falha","Bata todas as marcas da Sem. 1"] },
-  { cls:"#ff6b35", week:"Semana 3", name:"Intensidade Máxima · Schatz Mode", items:["Todos os Falha vão ao limite absoluto","+1 série nos principais se tiver energia","FST-7: carga máxima com 7 séries","\"Mais cinco\" quando quiser parar","Semana mais dura — não economize"] },
-  { cls:"#b47fff", week:"Semana 4", name:"Consolidação · Bate Recordes", items:["Bata PR em pelo menos 2 exercícios","Volume Sem. 3 com cargas iguais ou maiores","FST-7: mantenha ou +1 série","Foco nos compostos âncora","Avalie pontos fracos para o próximo ciclo"] },
-  { cls:"#5a5a72", week:"Deload", name:"Semana 5 · Recuperação Ativa", items:["Volume −40–50% (menos séries)","Cargas Sem. 1–2, sem chegar à falha","Sem FST-7 e Rest Pause","Priorize sono e nutrição","Reinicie com cargas 5–10% maiores"] },
+const PROG=[
+  {c:"#47b4ff",w:"Semana 1",n:"Adaptação · Volume Moderado",items:["Aprenda os exercícios com técnica perfeita","Progressão conservadora série a série","FST-7 leve — foco no pump","Rest Pause: 1 extensão após a falha","Anote todas as cargas"]},
+  {c:"#e8ff47",w:"Semana 2",n:"Sobrecarga · Aumenta Tudo",items:["+2,5–5kg nos compostos completados","FST-7: +1–2 reps ou carga levemente maior","Rest Pause: adicione 2ª extensão","Drop Sets: −30% exato na falha","Bata todas as marcas da Sem. 1"]},
+  {c:"#ff6b35",w:"Semana 3",n:"Intensidade Máxima · Schatz Mode",items:["Todos os Falha vão ao limite absoluto","+1 série nos principais se tiver energia","FST-7: carga máxima com 7 séries",'"Mais cinco" quando quiser parar',"Semana mais dura — não economize"]},
+  {c:"#b47fff",w:"Semana 4",n:"Consolidação · Bate Recordes",items:["Bata PR em pelo menos 2 exercícios","Volume Sem. 3 com cargas iguais ou maiores","FST-7: mantenha ou +1 série","Foco nos compostos âncora","Avalie pontos fracos para o próximo ciclo"]},
+  {c:"#52526a",w:"Deload",n:"Semana 5 · Recuperação Ativa",items:["Volume −40–50% (menos séries)","Cargas Sem. 1–2, sem chegar à falha","Sem FST-7 e Rest Pause","Priorize sono e nutrição","Reinicie com cargas 5–10% maiores"]},
 ];
 
-// ─────────────────────────────────────────────
-// STORAGE
-// ─────────────────────────────────────────────
-const getLog = () => { try { return JSON.parse(localStorage.getItem("tm_log") || "[]"); } catch { return []; } };
-const saveLog = (d) => localStorage.setItem("tm_log", JSON.stringify(d));
+const TAG_CLS={"Prog":"tp2","FST-7":"tf","Rest Pause":"tr2","Drop Set":"td2","Falha":"tfa","⚠ Ombro":"tw2"};
+const getLog=()=>{try{return JSON.parse(localStorage.getItem("tm_log")||"[]")}catch{return[]}};
+const saveLog=d=>localStorage.setItem("tm_log",JSON.stringify(d));
 
-// ─────────────────────────────────────────────
-// STYLES (injected once)
-// ─────────────────────────────────────────────
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+/* WEEK GRID */
+document.getElementById("wgrid").innerHTML=WEEK.map(w=>`
+  <div class="wday">
+    <div style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0;background:${w.c}"></div>
+    <span class="wdn">${w.day}</span><span class="wdt" style="color:${w.c}">${w.type}</span>
+  </div>`).join("");
 
-  :root {
-    --acc:#e8ff47; --push:#ff6b35; --pull:#47b4ff; --legs:#b47fff;
-    --ok:#4dffb4; --danger:#ff4d6d; --warn:#ffcb35;
-    --r:10px; --r2:16px;
-  }
-  [data-theme=dark] {
-    --bg:#0c0c0e; --surf:#141418; --surf2:#1c1c24; --surf3:#22222c;
-    --bord:#2e2e3c; --bord2:#3a3a4c;
-    --txt:#f2f2f8; --txt2:#9090aa; --muted:#55556a; --inp:#1a1a22;
-    --card-shadow: 0 2px 0 #000, 0 8px 32px rgba(0,0,0,.5);
-    --card-hover-shadow: 0 2px 0 #000, 0 12px 40px rgba(0,0,0,.7);
-  }
-  [data-theme=light] {
-    --bg:#f0f0ec; --surf:#ffffff; --surf2:#f5f5f0; --surf3:#ebebе6;
-    --bord:#ddddd5; --bord2:#ccccс4;
-    --txt:#18181f; --txt2:#55555f; --muted:#9090a0; --inp:#f8f8f4;
-    --card-shadow: 0 1px 0 rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.08);
-    --card-hover-shadow: 0 1px 0 rgba(0,0,0,.1), 0 8px 28px rgba(0,0,0,.14);
-  }
+/* BUILD SESSIONS */
+function tags(arr){return arr.map(t=>`<span class="tb ${TAG_CLS[t]||'tp2'}">${t}</span>`).join("")}
 
-  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-  html { scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
-  body { background:var(--bg); color:var(--txt); font-family:'DM Sans',sans-serif; font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; transition:background .3s,color .3s; }
-  button { font-family:'DM Sans',sans-serif; cursor:pointer; }
-  input, select { font-family:'DM Sans',sans-serif; }
-
-  /* ── FADE PAGE TRANSITION ── */
-  .page { animation: pageFade .28s ease both; }
-  @keyframes pageFade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-
-  /* ── TOPBAR ── */
-  .topbar { position:sticky; top:0; z-index:200; background:var(--bg); border-bottom:1px solid var(--bord); display:flex; align-items:center; justify-content:space-between; padding:0 20px; height:56px; backdrop-filter:blur(16px); }
-  .logo { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:4px; color:var(--txt); }
-  .logo em { color:var(--acc); font-style:normal; }
-  .tog-wrap { display:flex; align-items:center; gap:10px; }
-  .tog-lbl { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px; color:var(--muted); text-transform:uppercase; }
-  .tog { width:48px; height:28px; background:var(--surf2); border:1px solid var(--bord); border-radius:14px; cursor:pointer; position:relative; transition:background .2s; flex-shrink:0; }
-  .tog::after { content:''; position:absolute; width:20px; height:20px; border-radius:50%; background:var(--acc); top:3px; left:3px; transition:transform .25s cubic-bezier(.4,0,.2,1); }
-  [data-theme=light] .tog::after { transform:translateX(20px); }
-
-  /* ── TABS ── */
-  .tabs { background:var(--surf); border-bottom:1px solid var(--bord); display:flex; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
-  .tabs::-webkit-scrollbar { display:none; }
-  .tab { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1px; text-transform:uppercase; padding:0 18px; height:50px; background:none; border:none; border-bottom:2px solid transparent; color:var(--muted); white-space:nowrap; transition:color .2s,border-color .2s; }
-  .tab:hover { color:var(--txt2); }
-  .tab.on { border-bottom-color:currentColor; }
-
-  /* ── WRAP ── */
-  .wrap { max-width:900px; margin:0 auto; padding:0 16px; }
-  .section { padding:28px 0 100px; }
-
-  /* ── HERO ── */
-  .hero-strip { background:var(--surf); border-bottom:1px solid var(--bord); padding:28px 20px 22px; }
-  .hero-strip h1 { font-family:'Bebas Neue',sans-serif; font-size:clamp(48px,10vw,88px); line-height:.88; letter-spacing:2px; }
-  .hero-strip h1 em { color:var(--acc); font-style:normal; }
-  .hero-sub { font-size:14px; color:var(--txt2); margin-top:10px; max-width:480px; line-height:1.7; }
-  .htags { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
-  .htag { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:5px 12px; border-radius:20px; border:1px solid; }
-
-  /* ── WEEK GRID ── */
-  .week-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:32px; }
-  .wday { border-radius:12px; padding:14px 6px; text-align:center; background:var(--surf); border:1px solid var(--bord); position:relative; overflow:hidden; }
-  .wday::before { content:''; position:absolute; top:0; left:0; width:100%; height:3px; border-radius:12px 12px 0 0; }
-  .wday .wdn { font-family:'DM Mono',monospace; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:6px; }
-  .wday .wdt { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px; }
-  @media(max-width:560px){ .week-grid { grid-template-columns:repeat(4,1fr); } }
-
-  /* ── SECTION HEADING ── */
-  .sh { display:flex; align-items:baseline; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
-  .sh h2 { font-family:'Bebas Neue',sans-serif; font-size:clamp(32px,6vw,50px); letter-spacing:2px; line-height:1; }
-  .badge { display:inline-block; font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:4px 12px; border-radius:20px; border:1px solid; }
-  .sdesc { color:var(--txt2); font-size:15px; margin-bottom:24px; line-height:1.7; }
-
-  /* ── ALERT ── */
-  .alert-box { display:flex; gap:12px; padding:14px 16px; background:rgba(255,200,50,.07); border:1px solid rgba(255,200,50,.25); border-radius:var(--r); margin-bottom:22px; font-size:14px; line-height:1.6; color:var(--warn); border-left:3px solid var(--warn); }
-
-  /* ── BLOCK LABEL ── */
-  .blk { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin:28px 0 14px; display:flex; align-items:center; gap:12px; }
-  .blk::after { content:''; flex:1; height:1px; background:var(--bord); }
-
-  /* ── EXERCISE CARDS ── */
-  .ex-list { display:flex; flex-direction:column; gap:10px; }
-
-  .ex-card {
-    background:var(--surf);
-    border:1px solid var(--bord);
-    border-radius:var(--r2);
-    box-shadow:var(--card-shadow);
-    overflow:hidden;
-    transition:box-shadow .22s, border-color .22s, transform .18s;
-    cursor:pointer;
-    position:relative;
-  }
-  .ex-card:hover {
-    box-shadow:var(--card-hover-shadow);
-    border-color:var(--bord2);
-    transform:translateY(-1px);
-  }
-  .ex-card.open {
-    border-color:var(--acc);
-    box-shadow:0 0 0 1px var(--acc), var(--card-hover-shadow);
-  }
-
-  /* left accent bar */
-  .ex-card::before {
-    content:'';
-    position:absolute;
-    left:0; top:0;
-    width:3px; height:100%;
-    background:var(--bord2);
-    transition:background .2s;
-    border-radius:var(--r2) 0 0 var(--r2);
-  }
-  .ex-card.open::before { background:var(--acc); }
-
-  .ex-header {
-    display:flex;
-    align-items:flex-start;
-    gap:14px;
-    padding:16px 16px 16px 20px;
-  }
-
-  .ex-num {
-    font-family:'DM Mono',monospace;
-    font-size:12px;
-    color:var(--muted);
-    min-width:28px;
-    padding-top:2px;
-    flex-shrink:0;
-  }
-
-  .ex-info { flex:1; min-width:0; }
-  .ex-name { font-weight:600; font-size:16px; color:var(--txt); line-height:1.3; }
-  .ex-sub  { font-size:13px; color:var(--txt2); margin-top:3px; }
-
-  .ex-chips {
-    display:flex;
-    flex-direction:column;
-    align-items:flex-end;
-    gap:6px;
-    flex-shrink:0;
-  }
-  .chip {
-    font-family:'DM Mono',monospace;
-    font-size:12px;
-    color:var(--txt2);
-    background:var(--surf2);
-    border:1px solid var(--bord);
-    border-radius:8px;
-    padding:4px 10px;
-    white-space:nowrap;
-  }
-  .chip.rest { font-size:11px; color:var(--muted); }
-
-  .ex-footer {
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:0 20px 14px 20px;
-    gap:8px;
-  }
-  .tags { display:flex; flex-wrap:wrap; gap:6px; }
-  .tag {
-    font-family:'DM Mono',monospace;
-    font-size:10px;
-    letter-spacing:.8px;
-    text-transform:uppercase;
-    padding:3px 9px;
-    border-radius:6px;
-    border:1px solid;
-  }
-  .chevron {
-    font-size:12px;
-    color:var(--muted);
-    transition:transform .22s, color .2s;
-    flex-shrink:0;
-    margin-left:auto;
-    padding-left:8px;
-  }
-  .ex-card.open .chevron { transform:rotate(180deg); color:var(--acc); }
-
-  @media(max-width:600px){
-    .ex-chips { display:none; }
-    .ex-meta-mobile {
-      display:flex;
-      gap:6px;
-      padding:0 20px 10px;
-    }
-    .chip-mob {
-      flex:1;
-      background:var(--surf2);
-      border:1px solid var(--bord);
-      border-radius:8px;
-      padding:8px 10px;
-    }
-    .chip-mob-lbl { font-family:'DM Mono',monospace; font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:2px; }
-    .chip-mob-val { font-family:'DM Mono',monospace; font-size:13px; color:var(--txt); font-weight:500; }
-  }
-  @media(min-width:601px){ .ex-meta-mobile { display:none; } }
-
-  /* ── LOG PANEL (expand) ── */
-  .log-panel {
-    overflow:hidden;
-    max-height:0;
-    transition:max-height .32s cubic-bezier(.4,0,.2,1), opacity .25s ease;
-    opacity:0;
-    border-top:0px solid transparent;
-  }
-  .log-panel.open {
-    max-height:600px;
-    opacity:1;
-    border-top:1px solid var(--bord);
-  }
-  .log-inner { padding:16px 20px 20px; background:var(--surf2); }
-
-  .lf-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; align-items:flex-end; }
-  .lf-group { display:flex; flex-direction:column; gap:5px; }
-  .lf-lbl { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
-  .lf-inp { background:var(--inp); border:1px solid var(--bord); border-radius:var(--r); color:var(--txt); font-size:16px; padding:10px 14px; width:110px; outline:none; transition:border-color .2s; -webkit-appearance:none; border-radius:10px; }
-  .lf-inp:focus { border-color:var(--acc); }
-  input[type=date].lf-inp { width:160px; }
-  @media(max-width:600px){
-    .lf-row { flex-direction:row; }
-    .lf-inp { width:100%; }
-    input[type=date].lf-inp { width:100%; }
-    .lf-group { flex:1; min-width:120px; }
-    .lf-group.btn-group { flex:none; width:100%; }
-  }
-
-  .btn-save { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; padding:11px 22px; border-radius:10px; border:none; background:var(--acc); color:#0a0a0b; font-weight:700; transition:opacity .18s, transform .15s; white-space:nowrap; }
-  .btn-save:hover { opacity:.88; transform:scale(1.02); }
-  .btn-save:active { transform:scale(.98); }
-
-  .pr-hint { font-size:13px; color:var(--acc); margin-top:6px; min-height:18px; font-weight:600; }
-
-  .hist-list { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
-  .hist-lbl { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
-  .hentry {
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
-    padding:12px 16px;
-    background:var(--surf);
-    border:1px solid var(--bord);
-    border-radius:12px;
-    animation:entryIn .18s ease both;
-  }
-  @keyframes entryIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
-  .hentry-load { font-family:'Bebas Neue',sans-serif; font-size:34px; color:var(--acc); line-height:1; }
-  .hentry-load span { font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); }
-  .hentry-date { font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); }
-  .pr-chip { font-family:'DM Mono',monospace; font-size:9px; text-transform:uppercase; letter-spacing:1px; padding:3px 8px; border-radius:6px; background:rgba(232,255,71,.15); color:var(--acc); border:1px solid rgba(232,255,71,.3); }
-  .btn-del { font-size:12px; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,77,109,.25); background:transparent; color:var(--danger); transition:background .15s; min-width:34px; }
-  .btn-del:hover { background:rgba(255,77,109,.12); }
-  .no-entries { font-size:14px; color:var(--muted); font-style:italic; }
-
-  /* ── LEGEND ── */
-  .legend { display:flex; flex-wrap:wrap; gap:10px; padding:14px 16px; background:var(--surf); border:1px solid var(--bord); border-radius:var(--r2); margin-bottom:24px; }
-  .leg-item { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--txt2); }
-
-  /* ── RULE CARDS ── */
-  .rgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
-  .rc { background:var(--surf); border:1px solid var(--bord); border-radius:var(--r2); padding:20px; box-shadow:var(--card-shadow); }
-  .rc-icon { font-size:22px; display:block; margin-bottom:10px; }
-  .rc-title { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px; color:var(--acc); margin-bottom:6px; }
-  .rc-body { font-size:14px; color:var(--txt2); line-height:1.7; }
-  .rc-body strong { color:var(--txt); }
-
-  /* ── PROG CARDS ── */
-  .pgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-bottom:32px; }
-  .pc { background:var(--surf); border:1px solid var(--bord); border-radius:var(--r2); padding:20px; position:relative; overflow:hidden; box-shadow:var(--card-shadow); }
-  .pc::before { content:''; position:absolute; top:0; left:0; width:100%; height:3px; border-radius:var(--r2) var(--r2) 0 0; }
-  .pc-week { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:1px; line-height:1; margin-bottom:3px; }
-  .pc-name { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:12px; }
-  .pc-list { list-style:none; display:flex; flex-direction:column; gap:8px; }
-  .pc-list li { display:flex; gap:8px; font-size:14px; color:var(--txt2); line-height:1.5; }
-  .pc-list li::before { content:'→'; color:var(--muted); flex-shrink:0; font-family:'DM Mono',monospace; font-size:11px; margin-top:2px; }
-
-  /* ── STATS ── */
-  .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:10px; margin-bottom:24px; }
-  .stat-card { background:var(--surf); border:1px solid var(--bord); border-radius:var(--r2); padding:18px 14px; text-align:center; box-shadow:var(--card-shadow); }
-  .stat-val { font-family:'Bebas Neue',sans-serif; font-size:36px; line-height:1; color:var(--acc); }
-  .stat-lbl { font-family:'DM Mono',monospace; font-size:9.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-top:4px; }
-
-  .chart-card { background:var(--surf); border:1px solid var(--bord); border-radius:var(--r2); padding:20px; margin-bottom:24px; box-shadow:var(--card-shadow); }
-  .chart-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
-  .chart-head h3 { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:1px; color:var(--txt); }
-  .sel { background:var(--inp); border:1px solid var(--bord); border-radius:10px; color:var(--txt); font-size:14px; padding:9px 12px; outline:none; cursor:pointer; -webkit-appearance:none; transition:border-color .2s; width:100%; max-width:240px; }
-  .sel:focus { border-color:var(--acc); }
-
-  .hist-full { display:flex; flex-direction:column; gap:10px; }
-  .hcard { background:var(--surf); border:1px solid var(--bord); border-radius:var(--r2); padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; box-shadow:var(--card-shadow); animation:entryIn .2s ease both; }
-  .hcard-left { flex:1; min-width:0; }
-  .hcard-ex { font-weight:600; font-size:15px; color:var(--txt); margin-bottom:4px; }
-  .hcard-meta { font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:10px; }
-  .hcard-load { font-family:'Bebas Neue',sans-serif; font-size:34px; color:var(--acc); line-height:1; flex-shrink:0; }
-  .hcard-load span { font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); }
-
-  .divider { border:none; border-top:1px solid var(--bord); margin:32px 0; }
-
-  .export-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
-  .btn-exp { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:10px 16px; border-radius:10px; border:1px solid var(--bord); background:transparent; color:var(--muted); transition:all .18s; min-height:44px; }
-  .btn-exp:hover { color:var(--txt); border-color:var(--txt2); }
-
-  .empty { text-align:center; padding:44px 16px; color:var(--muted); }
-  .empty-icon { font-size:44px; display:block; margin-bottom:12px; }
-  .empty p { font-size:15px; line-height:1.7; }
-
-  footer { border-top:1px solid var(--bord); padding:20px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
-  footer p { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
-
-  /* ── STAGGER ANIMATION for cards ── */
-  .ex-card { animation: cardIn .3s ease both; }
-  @keyframes cardIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
-`;
-
-// ─────────────────────────────────────────────
-// COMPONENTS
-// ─────────────────────────────────────────────
-
-function TagBadge({ label }) {
-  const s = BADGES[label] || BADGES["Prog"];
-  return (
-    <span className="tag" style={{ background: s.bg, color: s.color, borderColor: s.border }}>
-      {label}
-    </span>
-  );
+function buildCard(ex,sid,idx){
+  const uid=`${sid}_${ex.n}`;
+  return `<div class="ex-card" id="card-${uid}" style="animation-delay:${idx*.05}s" onclick="toggleCard('${uid}')">
+    <div class="ex-header">
+      <span class="ex-num">${ex.n}</span>
+      <div class="ex-info">
+        <div class="ex-name">${ex.name}</div>
+        ${ex.sub?`<div class="ex-sub">${ex.sub}</div>`:""}
+      </div>
+      <div class="ex-chips">
+        <span class="chip">${ex.ser}</span>
+        <span class="chip cr">${ex.rest}</span>
+      </div>
+      <span class="ex-chev">▾</span>
+    </div>
+    <div class="ex-meta-mob">
+      <div class="cmob"><span class="cmob-l">Séries × Reps</span><span class="cmob-v">${ex.ser}</span></div>
+      <div class="cmob"><span class="cmob-l">Descanso</span><span class="cmob-v">${ex.rest}</span></div>
+    </div>
+    <div class="ex-footer">${tags(ex.tags)}</div>
+    <div class="log-panel" id="panel-${uid}"><div class="log-inner" id="inner-${uid}"></div></div>
+  </div>`;
 }
 
-function LogPanel({ exName, session, isOpen }) {
-  const [load, setLoad] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [entries, setEntries] = useState([]);
-  const [hint, setHint] = useState("");
+Object.entries(SESSIONS).forEach(([sid,s])=>{
+  const c=document.getElementById("c-"+sid);if(!c)return;
+  let h=`<div class="hero"><div class="wrap">
+    <h1 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(48px,10vw,88px);line-height:.88;letter-spacing:2px;color:${s.color}">${s.label}</h1>
+    <p class="hero-sub">${s.focus} — clique em qualquer exercício para registrar sua carga.</p>
+  </div></div><div class="wrap scontent pf">`;
+  if(s.alert) h+=`<div class="alert-box"><span>⚠️</span><span>${s.alert}</span></div>`;
+  s.blocks.forEach(b=>{
+    h+=`<div class="blk">${b.label}</div><div class="ex-list">`;
+    b.items.forEach((ex,i)=>{h+=buildCard(ex,sid,i);});
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+  c.innerHTML=h;
+});
 
-  useEffect(() => {
-    const data = getLog().filter((d) => d.exercise === exName);
-    setEntries(data);
-    const best = data.length ? Math.max(...data.map((d) => d.load)) : 0;
-    setHint(best > 0 ? `PR atual: ${best}kg` : "Primeiro registro");
-  }, [exName]);
+/* PROG */
+(()=>{
+  const c=document.getElementById("c-prog");if(!c)return;
+  let h=`<div class="hero"><div class="wrap">
+    <h1 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(48px,10vw,88px);line-height:.88;letter-spacing:2px">PROG<em style="color:var(--acc);font-style:normal;display:block">RESSÃO</em></h1>
+    <p class="hero-sub">Periodização ondulada 4 semanas + deload. Método Pacholok.</p>
+  </div></div><div class="wrap scontent pf"><div class="pgrid">`;
+  PROG.forEach((w,i)=>{
+    h+=`<div class="pc" style="animation-delay:${i*.06}s">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0;background:${w.c}"></div>
+      <div class="pw" style="color:${w.c}">${w.w}</div><div class="pn">${w.n}</div>
+      <ul class="pl">${w.items.map(it=>`<li>${it}</li>`).join("")}</ul>
+    </div>`;
+  });
+  h+=`</div><hr class="dv">
+  <div class="sh" style="margin-bottom:8px"><h2 style="font-size:26px">REGRAS</h2></div>
+  <div class="rgrid">
+    <div class="rc"><span class="ri">📈</span><div class="rt">Quando Subir</div><div class="rb">Completou <strong>todas as reps</strong> nas últimas 2 sessões? Sobe <strong>2,5kg isolamentos / 5kg compostos</strong>.</div></div>
+    <div class="rc"><span class="ri">📉</span><div class="rt">Quando Manter</div><div class="rb">Não completou ou execução suja? <strong>Mantém o peso.</strong> Nunca sobe sacrificando técnica.</div></div>
+    <div class="rc"><span class="ri">🔄</span><div class="rt">Troca de Exercício</div><div class="rb">Estagnação por <strong>3 semanas</strong>? Troca pela variação equivalente.</div></div>
+    <div class="rc"><span class="ri">⚡</span><div class="rt">FST-7 Progressão</div><div class="rb">Sem1→2: mesma carga, +reps. Sem3: suba a carga. <strong>30–45 seg descanso inegociável.</strong></div></div>
+  </div></div>`;
+  c.innerHTML=h;
+})();
 
-  const save = () => {
-    const l = parseFloat(load);
-    if (isNaN(l) || l <= 0 || !date) return;
-    const all = getLog();
-    const prev = all.filter((d) => d.exercise === exName);
-    const prevBest = prev.length ? Math.max(...prev.map((d) => d.load)) : 0;
-    const isPR = l > prevBest && prevBest > 0;
-    const entry = { id: Date.now(), session, exercise: exName, load: l, date, pr: isPR };
-    all.push(entry);
-    saveLog(all);
-    const updated = all.filter((d) => d.exercise === exName);
-    setEntries(updated);
-    setLoad("");
-    const newBest = Math.max(...updated.map((d) => d.load));
-    setHint(isPR ? `🏆 NOVO PR! ${l}kg — anterior era ${prevBest}kg` : `PR atual: ${newBest}kg`);
-  };
+/* TOGGLE CARD */
+function toggleCard(uid){
+  const card=document.getElementById("card-"+uid);
+  const panel=document.getElementById("panel-"+uid);
+  const isOpen=card.classList.contains("open");
+  card.closest(".ex-list")?.querySelectorAll(".ex-card.open").forEach(c=>{
+    c.classList.remove("open");c.querySelector(".log-panel")?.classList.remove("open");
+  });
+  if(!isOpen){card.classList.add("open");panel.classList.add("open");buildPanel(uid);}
+}
 
-  const del = (id) => {
-    const all = getLog().filter((d) => d.id !== id);
-    saveLog(all);
-    const updated = all.filter((d) => d.exercise === exName);
-    setEntries(updated);
-    const best = updated.length ? Math.max(...updated.map((d) => d.load)) : 0;
-    setHint(best > 0 ? `PR atual: ${best}kg` : "Primeiro registro");
-  };
+function exName(uid){return document.getElementById("card-"+uid)?.querySelector(".ex-name")?.textContent||""}
+function exSession(uid){
+  const sec=document.getElementById("card-"+uid)?.closest("section");
+  const sid=sec?.id||"";
+  return SESSIONS[sid]?.label||sid;
+}
 
-  return (
-    <div className={`log-panel ${isOpen ? "open" : ""}`}>
-      <div className="log-inner">
-        <div className="lf-row">
-          <div className="lf-group">
-            <span className="lf-lbl">Carga (kg)</span>
-            <input className="lf-inp" type="number" value={load} onChange={(e) => setLoad(e.target.value)}
-              placeholder="Ex: 80" min="0" step="0.5"
-              onKeyDown={(e) => e.key === "Enter" && save()} />
-          </div>
-          <div className="lf-group">
-            <span className="lf-lbl">Data</span>
-            <input className="lf-inp" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-          <div className="lf-group btn-group" style={{ justifyContent: "flex-end" }}>
-            <button className="btn-save" onClick={save}>+ Salvar</button>
-          </div>
+function histHTML(data){
+  if(!data.length) return '<div class="no-entries">Nenhum registro ainda.</div>';
+  return `<div class="hist-wrap"><div class="hist-lbl">Histórico</div>`+
+    [...data].reverse().slice(0,8).map((e,i)=>`
+    <div class="hentry" style="animation-delay:${i*.04}s">
+      <div style="display:flex;align-items:center;gap:12px;flex:1">
+        <div class="hload">${e.load}<span>kg</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          ${e.pr?'<span class="pr-chip">PR 🏆</span>':""}
+          <span class="hdate">${e.date}</span>
         </div>
-        <div className="pr-hint" style={{ color: hint.includes("PR") ? "#e8ff47" : "#4dffb4" }}>{hint}</div>
+      </div>
+      <button class="btn-del" onclick="event.stopPropagation();delEntry(${e.id},'${uid}')">✕</button>
+    </div>`).join("")+`</div>`;
+}
 
-        {entries.length > 0 && (
-          <div className="hist-list">
-            <div className="hist-lbl">Histórico</div>
-            {[...entries].reverse().slice(0, 8).map((e, i) => (
-              <div className="hentry" key={e.id} style={{ animationDelay: `${i * 0.04}s` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1 }}>
-                  <div className="hentry-load">{e.load}<span>kg</span></div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    {e.pr && <span className="pr-chip">PR 🏆</span>}
-                    <span className="hentry-date">{e.date}</span>
-                  </div>
-                </div>
-                <button className="btn-del" onClick={() => del(e.id)}>✕</button>
-              </div>
-            ))}
-          </div>
-        )}
-        {entries.length === 0 && <div className="no-entries">Nenhum registro ainda.</div>}
+function buildPanel(uid){
+  const inner=document.getElementById("inner-"+uid);if(!inner)return;
+  const name=exName(uid);
+  const today=new Date().toISOString().slice(0,10);
+  const data=getLog().filter(d=>d.exercise===name);
+  const best=data.length?Math.max(...data.map(d=>d.load)):0;
+  inner.innerHTML=`
+    <div class="lf-row">
+      <div class="lf-g"><span class="lf-lbl">Carga (kg)</span>
+        <input class="lf-inp" type="number" id="fl-${uid}" placeholder="Ex: 80" min="0" step="0.5"
+          onkeydown="if(event.key==='Enter')saveEntry('${uid}')" onclick="event.stopPropagation()">
+      </div>
+      <div class="lf-g"><span class="lf-lbl">Data</span>
+        <input class="lf-inp" type="date" id="fd-${uid}" value="${today}" onclick="event.stopPropagation()">
+      </div>
+      <div class="lf-g btn-g">
+        <button class="btn-save" onclick="event.stopPropagation();saveEntry('${uid}')">+ Salvar</button>
       </div>
     </div>
-  );
-}
-
-function ExCard({ ex, session, index }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`ex-card ${open ? "open" : ""}`} style={{ animationDelay: `${index * 0.05}s` }}>
-      <div className="ex-header" onClick={() => setOpen(!open)}>
-        <span className="ex-num">{ex.n}</span>
-        <div className="ex-info">
-          <div className="ex-name">{ex.name}</div>
-          {ex.sub && <div className="ex-sub">{ex.sub}</div>}
-        </div>
-        <div className="ex-chips">
-          <span className="chip">{ex.ser}</span>
-          <span className="chip rest">{ex.rest}</span>
-        </div>
-        <span className="chevron">▾</span>
-      </div>
-
-      {/* mobile chips */}
-      <div className="ex-meta-mobile">
-        <div className="chip-mob">
-          <span className="chip-mob-lbl">Séries × Reps</span>
-          <span className="chip-mob-val">{ex.ser}</span>
-        </div>
-        <div className="chip-mob">
-          <span className="chip-mob-lbl">Descanso</span>
-          <span className="chip-mob-val">{ex.rest}</span>
-        </div>
-      </div>
-
-      <div className="ex-footer" onClick={() => setOpen(!open)}>
-        <div className="tags">
-          {ex.tags.map((t) => <TagBadge key={t} label={t} />)}
-        </div>
-      </div>
-
-      <LogPanel exName={ex.name} session={session} isOpen={open} />
+    <div class="pr-hint" id="ph-${uid}" style="color:${best>0?"var(--ok)":"var(--muted)"}">
+      ${best>0?`PR atual: ${best}kg`:"Primeiro registro"}
     </div>
-  );
+    <div id="hl-${uid}">${histHTML(data)}</div>`;
 }
 
-function ExSection({ sessionId, sessionLabel, color }) {
-  const data = EXERCISES[sessionId];
-  if (!data) return null;
-  return (
-    <>
-      {data.alert && (
-        <div className="alert-box">
-          <span>⚠️</span>
-          <span>{data.alert}</span>
-        </div>
-      )}
-      {data.blocks.map((block, bi) => (
-        <div key={bi}>
-          <div className="blk">{block.label}</div>
-          <div className="ex-list">
-            {block.items.map((ex, ei) => (
-              <ExCard key={ex.n + bi} ex={ex} session={sessionLabel} index={ei} />
-            ))}
-          </div>
-        </div>
-      ))}
-    </>
-  );
+function saveEntry(uid){
+  const load=parseFloat(document.getElementById("fl-"+uid)?.value);
+  const date=document.getElementById("fd-"+uid)?.value;
+  if(isNaN(load)||load<=0||!date){alert("Preencha a carga e a data!");return;}
+  const name=exName(uid);const session=exSession(uid);
+  const all=getLog();
+  const prev=all.filter(d=>d.exercise===name);
+  const prevBest=prev.length?Math.max(...prev.map(d=>d.load)):0;
+  const isPR=load>prevBest&&prevBest>0;
+  all.push({id:Date.now(),exercise:name,load,date,pr:isPR,session});
+  saveLog(all);
+  document.getElementById("fl-"+uid).value="";
+  const updated=all.filter(d=>d.exercise===name);
+  const newBest=Math.max(...updated.map(d=>d.load));
+  const ph=document.getElementById("ph-"+uid);
+  if(ph){ph.style.color=isPR?"var(--acc)":"var(--ok)";ph.textContent=isPR?`🏆 NOVO PR! ${load}kg — anterior: ${prevBest}kg`:`PR atual: ${newBest}kg`;}
+  const hl=document.getElementById("hl-"+uid);if(hl)hl.innerHTML=histHTML(updated);
+  updateStats();updateChartSel();
 }
 
-function ProgSection() {
-  return (
-    <>
-      <div className="pgrid">
-        {PROG_WEEKS.map((w, i) => (
-          <div className="pc" key={i} style={{ animationDelay: `${i * 0.06}s` }}>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: w.cls, borderRadius: "var(--r2) var(--r2) 0 0" }} />
-            <div className="pc-week" style={{ color: w.cls }}>{w.week}</div>
-            <div className="pc-name">{w.name}</div>
-            <ul className="pc-list">
-              {w.items.map((item, j) => <li key={j}>{item}</li>)}
-            </ul>
-          </div>
-        ))}
-      </div>
-      <hr className="divider" />
-      <div className="sh" style={{ marginBottom: 8 }}><h2 style={{ fontSize: 26 }}>REGRAS DE PROGRESSÃO</h2></div>
-      <div className="rgrid">
-        {[
-          ["📈","Quando Subir","Completou <strong>todas as reps</strong> nas últimas 2 sessões? Sobe <strong>2,5kg isolamentos / 5kg compostos</strong>."],
-          ["📉","Quando Manter","Não completou ou execução suja? <strong>Mantém o peso.</strong> Nunca sobe sacrificando técnica."],
-          ["🔄","Troca de Exercício","Estagnação por <strong>3 semanas</strong>? Troca pela variação equivalente. Novo estímulo = nova curva."],
-          ["⚡","FST-7 Progressão","Sem1→2: mesma carga, +reps. Sem3: suba a carga. <strong>30–45 seg descanso inegociável.</strong>"],
-        ].map(([icon, title, body]) => (
-          <div className="rc" key={title}>
-            <span className="rc-icon">{icon}</span>
-            <div className="rc-title">{title}</div>
-            <div className="rc-body" dangerouslySetInnerHTML={{ __html: body }} />
-          </div>
-        ))}
-      </div>
-    </>
-  );
+function delEntry(id,uid){
+  if(!confirm("Remover?"))return;
+  const all=getLog().filter(d=>d.id!==id);saveLog(all);
+  const name=exName(uid);const updated=all.filter(d=>d.exercise===name);
+  const hl=document.getElementById("hl-"+uid);if(hl)hl.innerHTML=histHTML(updated);
+  const ph=document.getElementById("ph-"+uid);
+  if(ph){const best=updated.length?Math.max(...updated.map(d=>d.load)):0;ph.style.color=best>0?"var(--ok)":"var(--muted)";ph.textContent=best>0?`PR atual: ${best}kg`:"Primeiro registro";}
+  updateStats();updateChartSel();
 }
 
-// Simple inline chart using canvas
-function LoadChart({ entries, exName }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!ref.current || !entries.length) return;
-    const ctx = ref.current.getContext("2d");
-    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    const gc = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)";
-    const tc = isDark ? "#55556a" : "#9090a0";
-    // destroy previous if any
-    if (ref.current._chart) ref.current._chart.destroy();
-    const Chart = window.Chart;
-    if (!Chart) return;
-    ref.current._chart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: entries.map((e) => e.date),
-        datasets: [{
-          label: "kg",
-          data: entries.map((e) => e.load),
-          borderColor: "#e8ff47",
-          backgroundColor: isDark ? "rgba(232,255,71,0.07)" : "rgba(232,255,71,0.13)",
-          borderWidth: 2.5,
-          pointBackgroundColor: entries.map((e) => e.pr ? "#ff6b35" : "#e8ff47"),
-          pointRadius: entries.map((e) => e.pr ? 7 : 4),
-          pointBorderWidth: 0,
-          fill: true, tension: 0.4,
-        }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: isDark ? "#1c1c24" : "#fff",
-            borderColor: isDark ? "#2e2e3c" : "#ddddd5",
-            borderWidth: 1,
-            titleColor: isDark ? "#f2f2f8" : "#18181f",
-            bodyColor: isDark ? "#9090aa" : "#55555f",
-            callbacks: { label: (c) => { const e = entries[c.dataIndex]; return ` ${e.load}kg${e.pr ? " 🏆 PR" : ""}`; } },
-          },
-        },
-        scales: {
-          x: { ticks: { color: tc, font: { family: "DM Mono", size: 10 } }, grid: { color: gc }, border: { color: gc } },
-          y: { ticks: { color: tc, font: { family: "DM Mono", size: 10 }, callback: (v) => v + "kg" }, grid: { color: gc }, border: { color: gc } },
-        },
-      },
-    });
-  }, [entries]);
-  return <canvas ref={ref} style={{ height: 220 }} />;
+/* TABS */
+const TABS=["visao","push1","pull1","legs1","push2","pull2","legs2","prog","stats"];
+document.querySelectorAll(".nb").forEach((btn,i)=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".sec").forEach(s=>s.classList.remove("on"));
+    document.querySelectorAll(".nb").forEach(b=>b.classList.remove("active"));
+    const sec=document.getElementById(TABS[i]);
+    if(sec){sec.classList.remove("pf");void sec.offsetWidth;sec.classList.add("on","pf");}
+    btn.classList.add("active");
+    window.scrollTo({top:0,behavior:"smooth"});
+    if(TABS[i]==="stats"){renderChart();renderHist();updateStats();}
+  });
+});
+
+/* THEME */
+function toggleTheme(){
+  const next=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
+  document.documentElement.setAttribute("data-theme",next);
+  document.getElementById("tlbl").textContent=next==="dark"?"Dark":"Light";
+  localStorage.setItem("tm_theme",next);
+  if(chartInst)renderChart();
+}
+(()=>{const t=localStorage.getItem("tm_theme")||"dark";document.documentElement.setAttribute("data-theme",t);document.getElementById("tlbl").textContent=t==="dark"?"Dark":"Light";})();
+
+/* STATS */
+function updateStats(){
+  const d=getLog();
+  document.getElementById("st-tot").textContent=d.length;
+  document.getElementById("st-ex").textContent=[...new Set(d.map(x=>x.exercise))].length;
+  document.getElementById("st-d").textContent=[...new Set(d.map(x=>x.date))].length;
+  document.getElementById("st-pr").textContent=d.filter(x=>x.pr).length;
 }
 
-function StatsSection() {
-  const [all, setAll] = useState(getLog());
-  const [chartEx, setChartEx] = useState("");
-  const [filter, setFilter] = useState("");
-
-  const reload = useCallback(() => { const d = getLog(); setAll(d); if (!chartEx && d.length) setChartEx(d[0].exercise); }, [chartEx]);
-  useEffect(() => { reload(); }, []);
-
-  const exList = [...new Set(all.map((d) => d.exercise))];
-  const chartData = all.filter((d) => d.exercise === chartEx).sort((a, b) => a.date.localeCompare(b.date));
-  const filtered = filter ? all.filter((d) => d.session === filter) : all;
-  const days = [...new Set(all.map((d) => d.date))].length;
-
-  const exportData = () => {
-    const b = new Blob([JSON.stringify(all, null, 2)], { type: "application/json" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(b);
-    a.download = `treino_log_${new Date().toISOString().slice(0, 10)}.json`; a.click();
-  };
-  const importRef = useRef(null);
-  const importData = (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = (ev) => {
-      try {
-        const imp = JSON.parse(ev.target.result);
-        if (!Array.isArray(imp)) throw 0;
-        const ex = getLog();
-        saveLog([...ex, ...imp.filter((i) => !ex.find((x) => x.id === i.id))]);
-        reload();
-      } catch { alert("Arquivo inválido."); }
-    };
-    r.readAsText(f); e.target.value = "";
-  };
-
-  const scColor = {"Push A":"#ff6b35","Push B":"#ff6b35","Pull A":"#47b4ff","Pull B":"#47b4ff","Legs A":"#b47fff","Legs B":"#b47fff"};
-
-  return (
-    <>
-      <div className="stats-row">
-        {[
-          [all.length, "Registros"],
-          [exList.length, "Exercícios"],
-          [days, "Dias"],
-          [all.filter((d) => d.pr).length, "PRs"],
-        ].map(([v, l]) => (
-          <div className="stat-card" key={l}>
-            <div className="stat-val">{v}</div>
-            <div className="stat-lbl">{l}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="chart-card">
-        <div className="chart-head">
-          <h3>Evolução de Carga</h3>
-          <select className="sel" value={chartEx} onChange={(e) => setChartEx(e.target.value)}>
-            {exList.map((ex) => <option key={ex}>{ex}</option>)}
-          </select>
-        </div>
-        {chartData.length > 0 ? (
-          <LoadChart entries={chartData} exName={chartEx} />
-        ) : (
-          <div className="empty">
-            <span className="empty-icon">📊</span>
-            <p>Nenhum registro ainda.<br />Clique em um exercício para registrar.</p>
-          </div>
-        )}
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
-        <div className="sh" style={{ marginBottom: 0 }}><h2 style={{ fontSize: 22 }}>Histórico Completo</h2></div>
-        <div className="export-row" style={{ marginBottom: 0 }}>
-          <button className="btn-exp" onClick={exportData}>⬇ Exportar</button>
-          <button className="btn-exp" onClick={() => importRef.current?.click()}>⬆ Importar</button>
-          <input ref={importRef} type="file" accept=".json" style={{ display: "none" }} onChange={importData} />
-        </div>
-      </div>
-      <select className="sel" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ marginBottom: 16, maxWidth: 180 }}>
-        <option value="">Todos</option>
-        {["Push A","Pull A","Legs A","Push B","Pull B","Legs B"].map((s) => <option key={s}>{s}</option>)}
-      </select>
-
-      <div className="hist-full">
-        {[...filtered].reverse().map((e, i) => (
-          <div className="hcard" key={e.id} style={{ animationDelay: `${i * 0.03}s` }}>
-            <div className="hcard-left">
-              <div className="hcard-ex">{e.exercise}{e.pr && <span className="pr-chip" style={{ marginLeft: 8 }}>PR 🏆</span>}</div>
-              <div className="hcard-meta">
-                <span style={{ color: scColor[e.session] || "#e8ff47" }}>{e.session}</span>
-                <span>{e.date}</span>
-              </div>
-            </div>
-            <div className="hcard-load">{e.load}<span>kg</span></div>
-            <button className="btn-del" onClick={() => { saveLog(getLog().filter((d) => d.id !== e.id)); reload(); }}>✕</button>
-          </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="empty">
-            <span className="empty-icon">📋</span>
-            <p>Nenhum registro ainda.<br />Clique em qualquer exercício nas abas do treino.</p>
-          </div>
-        )}
-      </div>
-    </>
-  );
+/* CHART */
+let chartInst=null;
+function updateChartSel(){
+  const d=getLog();const exs=[...new Set(d.map(x=>x.exercise))];
+  const sel=document.getElementById("chart-sel");if(!sel)return;
+  const cur=sel.value;sel.innerHTML=exs.map(e=>`<option ${e===cur?"selected":""}>${e}</option>`).join("");
+  if(!sel.value&&exs.length)sel.value=exs[0];
 }
-
-// ─────────────────────────────────────────────
-// APP
-// ─────────────────────────────────────────────
-export default function App() {
-  const [tab, setTab] = useState("push1");
-  const [theme, setTheme] = useState(() => localStorage.getItem("tm_theme") || "dark");
-  const [pageKey, setPageKey] = useState(0);
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("tm_theme", theme);
-  }, [theme]);
-
-  // inject CSS
-  useEffect(() => {
-    if (!document.getElementById("tm-css")) {
-      const s = document.createElement("style");
-      s.id = "tm-css"; s.textContent = CSS;
-      document.head.appendChild(s);
+function renderChart(){
+  updateChartSel();
+  const ex=document.getElementById("chart-sel")?.value;
+  const empty=document.getElementById("chart-empty");
+  const canvas=document.getElementById("myChart");
+  if(!ex||!canvas){if(empty)empty.style.display="block";return;}
+  const data=getLog().filter(d=>d.exercise===ex).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!data.length){empty.style.display="block";canvas.style.display="none";return;}
+  empty.style.display="none";canvas.style.display="block";
+  const dk=document.documentElement.getAttribute("data-theme")==="dark";
+  const gc=dk?"rgba(255,255,255,.05)":"rgba(0,0,0,.05)";
+  const tc=dk?"#52526a":"#909099";
+  if(chartInst)chartInst.destroy();
+  chartInst=new Chart(canvas,{
+    type:"line",data:{labels:data.map(d=>d.date),datasets:[{
+      label:"kg",data:data.map(d=>d.load),borderColor:"#e8ff47",
+      backgroundColor:dk?"rgba(232,255,71,.07)":"rgba(232,255,71,.13)",
+      borderWidth:2.5,pointBackgroundColor:data.map(d=>d.pr?"#ff6b35":"#e8ff47"),
+      pointRadius:data.map(d=>d.pr?7:4),pointBorderWidth:0,fill:true,tension:.4
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:dk?"#1c1c24":"#fff",borderColor:dk?"#2a2a38":"#ddddd4",borderWidth:1,
+        titleColor:dk?"#f2f2f8":"#18181f",bodyColor:dk?"#9090aa":"#55555f",
+        callbacks:{label:ctx=>{const d=data[ctx.dataIndex];return ` ${d.load}kg${d.pr?" 🏆 PR":""}`}}
+      }},
+      scales:{
+        x:{ticks:{color:tc,font:{family:"DM Mono",size:10}},grid:{color:gc},border:{color:gc}},
+        y:{ticks:{color:tc,font:{family:"DM Mono",size:10},callback:v=>v+"kg"},grid:{color:gc},border:{color:gc}}
+      }
     }
-    // inject Chart.js if not present
-    if (!window.Chart) {
-      const scr = document.createElement("script");
-      scr.src = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js";
-      document.head.appendChild(scr);
-    }
-  }, []);
-
-  const switchTab = (id) => {
-    setTab(id);
-    setPageKey((k) => k + 1);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const cur = SESSIONS.find((s) => s.id === tab);
-
-  return (
-    <div>
-      {/* TOPBAR */}
-      <div className="topbar">
-        <div className="logo">TRAIN<em>MAX</em></div>
-        <div className="tog-wrap">
-          <span className="tog-lbl">{theme === "dark" ? "Dark" : "Light"}</span>
-          <button className="tog" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Tema" />
-        </div>
-      </div>
-
-      {/* HERO — só na primeira aba de treino */}
-      {["push1","pull1","legs1","push2","pull2","legs2"].includes(tab) && (
-        <div className="hero-strip">
-          <div className="wrap">
-            <h1>{cur?.label.split(" ")[0]}<br /><em>{cur?.label.split(" ")[1] || ""}</em></h1>
-            <div className="hero-sub">{cur?.focus} — clique em qualquer exercício para registrar sua carga.</div>
-            <div className="htags">
-              <span className="htag" style={{ borderColor: "#e8ff47", color: "#e8ff47" }}>FST-7</span>
-              <span className="htag" style={{ borderColor: "#ff6b35", color: "#ff6b35" }}>Mais Cinco</span>
-              <span className="htag" style={{ borderColor: "#47b4ff", color: "#47b4ff" }}>Prog. Carga</span>
-              <span className="htag" style={{ borderColor: "#333340", color: "#5a5a72" }}>⚠ Ombro OK</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TABS */}
-      <nav className="tabs">
-        {SESSIONS.map((s) => (
-          <button key={s.id} className={`tab ${tab === s.id ? "on" : ""}`}
-            style={{ color: tab === s.id ? s.color : undefined }}
-            onClick={() => switchTab(s.id)}>
-            {s.label}
-          </button>
-        ))}
-      </nav>
-
-      {/* CONTENT */}
-      <div key={pageKey} className="page section wrap">
-        {/* VISÃO GERAL — mostrada dentro de push1 */}
-        {tab === "push1" && (
-          <>
-            <div style={{ marginBottom: 32 }}>
-              <div className="sh"><h2>SEMANA TIPO</h2></div>
-              <div className="week-grid">
-                {WEEK.map((w) => (
-                  <div className="wday" key={w.day} style={{ "--wc": w.color }}>
-                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: w.color, borderRadius: "12px 12px 0 0" }} />
-                    <span className="wdn">{w.day}</span>
-                    <span className="wdt" style={{ color: w.color }}>{w.type}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="legend">
-                {[["Prog","Progressão série a série"],["FST-7","7 séries pump final"],["Rest Pause","Falha + 3 resp + falha"],["Drop Set","−30% na falha"],["Falha","Até a falha concêntrica"]].map(([t, l]) => (
-                  <div className="leg-item" key={t}><TagBadge label={t} />{l}</div>
-                ))}
-              </div>
-            </div>
-            <div className="sh"><h2 style={{ color: "#ff6b35" }}>PUSH A</h2><span className="badge" style={{ borderColor:"rgba(255,107,53,.35)", color:"#ff6b35", background:"rgba(255,107,53,.08)" }}>Peito · Ombro · Tríceps</span></div>
-            <p className="sdesc">Foco em peito inclinado + reto. Ombro via Hammer Press neutro. FST-7 em peck deck e corda.</p>
-          </>
-        )}
-
-        {tab !== "push1" && cur && ["push2","pull1","pull2","legs1","legs2"].includes(tab) && (
-          <>
-            <div className="sh">
-              <h2 style={{ color: cur.color }}>{cur.label}</h2>
-              <span className="badge" style={{ borderColor: `${cur.color}55`, color: cur.color, background: `${cur.color}14` }}>{cur.focus}</span>
-            </div>
-            <p className="sdesc">
-              {tab === "pull1" && "Foco em espessura de costas. Compostos pesados com progressão. FST-7 em rosca alternada."}
-              {tab === "legs1" && "Leg Press e V-Squat como compostos âncora. FST-7 em panturrilha em pé."}
-              {tab === "push2" && "Variação com cabos e máquinas. Tensão constante no peito superior. Smith neutro para ombro."}
-              {tab === "pull2" && "Foco em largura de costas. Puxadas abertas e pullover. FST-7 em crucifixo invertido."}
-              {tab === "legs2" && "Hack Squat como âncora. Volume alto em isquiotibiais. FST-7 em panturrilha sentada."}
-            </p>
-          </>
-        )}
-
-        {tab === "prog" && (
-          <>
-            <div className="sh"><h2>PROGRESSÃO</h2><span className="badge" style={{ borderColor:"rgba(232,255,71,.35)", color:"#e8ff47", background:"rgba(232,255,71,.08)" }}>Guia Semanal</span></div>
-            <p className="sdesc">Periodização ondulada 4 semanas + deload. Baseada na metodologia Pacholok.</p>
-          </>
-        )}
-
-        {tab === "stats" && (
-          <>
-            <div className="sh"><h2>EVOLUÇÃO</h2><span className="badge" style={{ borderColor:"rgba(77,255,180,.35)", color:"#4dffb4", background:"rgba(77,255,180,.08)" }}>📈 Cargas</span></div>
-            <p className="sdesc">Gráfico de progresso por exercício. Registre as cargas clicando nos exercícios em cada aba.</p>
-          </>
-        )}
-
-        {/* render section content */}
-        {["push1","push2","pull1","pull2","legs1","legs2"].includes(tab) && (
-          <ExSection sessionId={tab} sessionLabel={cur?.label || tab} color={cur?.color || "#e8ff47"} />
-        )}
-        {tab === "prog" && <ProgSection />}
-        {tab === "stats" && <StatsSection />}
-      </div>
-
-      <footer>
-        <p>TrainMax · PPL × 2 · Hipertrofia Máxima</p>
-        <p>FST-7 · Rambod &nbsp;|&nbsp; Mais Cinco · Schatz &nbsp;|&nbsp; Prog. Carga · Pacholok</p>
-      </footer>
-    </div>
-  );
+  });
 }
+
+/* HISTORY */
+function renderHist(){
+  const fs=document.getElementById("hf")?.value;
+  let d=[...getLog()];if(fs)d=d.filter(x=>x.session===fs);d.reverse();
+  const el=document.getElementById("hist-full");if(!el)return;
+  const sc={push1:"#ff6b35",push2:"#ff6b35",pull1:"#47b4ff",pull2:"#47b4ff",legs1:"#b47fff",legs2:"#b47fff"};
+  if(!d.length){el.innerHTML=`<div class="empty"><span class="empty-i">📋</span><p>Nenhum registro ainda.<br>Clique em qualquer exercício para registrar.</p></div>`;return;}
+  el.innerHTML=d.map((e,i)=>`
+    <div class="hcard" style="animation-delay:${i*.03}s">
+      <div class="hcard-left">
+        <div class="hcard-ex">${e.exercise}${e.pr?'<span class="pr-chip" style="margin-left:8px">PR 🏆</span>':""}</div>
+        <div class="hcard-meta"><span style="color:${sc[e.session]||"var(--acc)"}">${e.session||""}</span><span>${e.date}</span></div>
+      </div>
+      <div class="hcard-load">${e.load}<span>kg</span></div>
+      <button class="btn-del" onclick="delHist(${e.id})">✕</button>
+    </div>`).join("");
+}
+function delHist(id){if(!confirm("Remover?"))return;saveLog(getLog().filter(d=>d.id!==id));renderHist();updateStats();updateChartSel();}
+
+/* EXPORT / IMPORT */
+function exportData(){
+  const b=new Blob([JSON.stringify(getLog(),null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(b);
+  a.download=`treino_log_${new Date().toISOString().slice(0,10)}.json`;a.click();
+}
+function importData(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{const imp=JSON.parse(ev.target.result);if(!Array.isArray(imp))throw 0;
+    const ex=getLog();saveLog([...ex,...imp.filter(i=>!ex.find(x=>x.id===i.id))]);
+    renderHist();updateStats();updateChartSel();alert(`✅ ${imp.length} registros importados!`);
+  }catch{alert("❌ Arquivo inválido.");}};
+  r.readAsText(f);e.target.value="";
+}
+
+updateStats();
+</script>
+</body>
+</html>
